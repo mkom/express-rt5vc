@@ -16,6 +16,10 @@ const HouseSchema = new Schema({
         ref: 'User',
         default: null,
     }],
+    whatsapp_number: {
+        type: String,
+        default: null,
+    },
     // auto_bill_date: {
     //     type: Number,
     //     default: 10, // Example default value, you can adjust as needed

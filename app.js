@@ -1,4 +1,26 @@
-require('dotenv').config(); // Load environment variables from .env file
+const fs = require('fs');
+const path = require('path');
+
+// Function to load environment variables
+function loadEnvVariables() {
+  // Load general .env file
+  require('dotenv').config();
+
+  // Load specific environment file
+  const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+  const envFilePath = path.resolve(process.cwd(), envFile);
+
+  if (fs.existsSync(envFilePath)) {
+    require('dotenv').config({ path: envFilePath });
+  } else {
+    console.warn(`Environment file ${envFile} does not exist`);
+  }
+}
+
+loadEnvVariables();
+
+
+
 const cors = require('cors');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -61,7 +83,7 @@ app.use('/api/v1/upload', uploadRouter);
 //   }
 // });
 
-app.use('/api', protect); // Apply protect middleware to all routes under /api
+//app.use('/api', protect); // Apply protect middleware to all routes under /api
 
 // Root route
 app.get('/api/v1/', (req, res) => {

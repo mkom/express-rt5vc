@@ -11,6 +11,11 @@ const transactionSchema = new Schema({
         enum: ['income', 'expense', 'ipl'],
         required: true
     },
+    payment_type: {
+        type: String,
+        enum: ['cash', 'transfer'],
+        required: true
+    },
     amount: {
         type: Number,
         required: true

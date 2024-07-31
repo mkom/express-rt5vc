@@ -1,0 +1,18 @@
+{
+    "sourceFile": "models/house.js",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1722425212015,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1722425212015,
+            "name": "Commit-0",
+            "content": "const mongoose = require('mongoose');\nconst Schema = mongoose.Schema;\n\nconst HouseSchema = new Schema({\n    house_id: {\n        type: String,\n        required: true,\n        unique: true,\n    },\n    resident_name: {\n        type: String,\n        default: null,\n    },\n    user_ids: [{\n        type: mongoose.Schema.Types.ObjectId,\n        ref: 'User',\n        default: null,\n    }],\n    whatsapp_number: {\n        type: String,\n        default: null,\n    },\n    // auto_bill_date: {\n    //     type: Number,\n    //     default: 10, // Example default value, you can adjust as needed\n    // },\n    fee: {\n        type: Number,\n        default: 70000, \n        required: true\n    },\n    occupancy_status: {\n        type: String,\n        enum: ['Kosong', 'Isi', 'Weekend', 'Tidak ada kontak'],\n        required: true\n    },\n    monthly_fees: [{\n        month: {\n            type: String,\n            required: true,\n        },\n        fee: {\n            type: Number,\n            required: true,\n        },\n        status: {\n            type: String,\n            enum: ['Lunas', 'Belum Bayar', 'Bayar Sebagian', \"TBD\"],\n            default: 'Belum Bayar'\n        },\n        transaction_id: {\n            type: Schema.Types.ObjectId,\n            ref: 'Transaction',\n            default: null\n        }\n    }]\n    \n});\n\nconst House = mongoose.model('House', HouseSchema);\nmodule.exports = House;"
+        }
+    ]
+}

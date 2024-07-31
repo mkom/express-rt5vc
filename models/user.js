@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   googleId:{ type: String, unique: true},
   password: { type: String, required: function() { return !this.googleId; } },
-  role: { type: String, required: true, enum: ['user', 'admin','superadmin'], default: 'user' },
+  role: { type: String, required: true, enum: ['user', 'admin','superadmin','editor', 'visitor'], default: 'visitor' },
   house_id: { type: Schema.Types.ObjectId, ref: 'House', default: null },
 });
 

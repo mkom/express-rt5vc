@@ -29,7 +29,7 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
        // console.log('houseId:', houseId);
         const house = await House.findOne({ house_id: houseId });
         //console.log(house)
-        if(transaction_type !== 'ipl') {
+        if(!house) {
             const transaction = new Transaction({
                 transaction_type,
                 payment_type,
@@ -46,7 +46,7 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
             res.status(201).json(transaction);
         }
 
-        if (transaction_type === 'ipl'){
+        if (house){
 
             if (!house) {
                 throw new Error('House not found');
@@ -108,22 +108,38 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 
 // Update an existing transaction
 router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']), async (req, res) => {
-    const { house_id, transaction_type, payment_type, amount, description, proof_of_transfer, related_months, status } = req.body;
+    const { houseId, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
   
     try {
       let transaction = await Transaction.findById(req.params.id);
       if (!transaction) {
         return res.status(404).json({ message: 'Transaction not found' });
       }
+
+      const house = await House.findOne({ house_id: houseId });
+
+      if(house) {
+        transaction.house_id = house._id;
+        transaction.transaction_type = transaction_type;
+        transaction.payment_type = payment_type;
+        transaction.amount = amount;
+        transaction.description = description;
+        transaction.proof_of_transfer = proof_of_transfer;
+        transaction.related_months = related_months;
+        transaction.status = status;
+        transaction.date=paymentDate
+      } else {
+        transaction.transaction_type = transaction_type;
+        transaction.payment_type = payment_type;
+        transaction.amount = amount;
+        transaction.description = description;
+        transaction.proof_of_transfer = proof_of_transfer;
+        transaction.related_months = related_months;
+        transaction.status = status;
+        transaction.date=paymentDate
+      }
   
-      transaction.house_id = house_id;
-      transaction.transaction_type = transaction_type;
-      transaction.payment_type = payment_type;
-      transaction.amount = amount;
-      transaction.description = description;
-      transaction.proof_of_transfer = proof_of_transfer;
-      transaction.related_months = related_months;
-      transaction.status = status;
+      
   
       await transaction.save();
       res.status(200).json(transaction);

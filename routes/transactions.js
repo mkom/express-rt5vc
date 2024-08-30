@@ -6,6 +6,7 @@ const Transaction = require('../models/transaction');
 const protect = require('./protect');
 const checkRole = require('./checkRole');
 const { format } = require('date-fns');
+const moment = require('moment-timezone');
 
 const cors = require('cors');
 const corsOptions = {
@@ -20,7 +21,7 @@ router.use(cors(corsOptions));
 
 // Create a new transaction
 router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
-    const { houseId, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
+    const { houseId, additional_note_mutasi_bca, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
     const created_by = req.user._id;
     try {
         // Find the house
@@ -35,10 +36,11 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
                 payment_type,
                 amount,
                 description,
+                additional_note_mutasi_bca,
                 proof_of_transfer,
                 created_by,
                 status,
-                date:paymentDate
+                date:moment.tz(paymentDate, 'Asia/Jakarta').format('YYYY-MM-DD HH:mm:ss')
             });
     
             await transaction.save();
@@ -66,33 +68,38 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
                 payment_type,
                 amount,
                 description,
+                additional_note_mutasi_bca,
                 proof_of_transfer,
                 related_months,
                 created_by,
                 status,
-                date:paymentDate
+                date:moment.tz(paymentDate, 'Asia/Jakarta').format('YYYY-MM-DD HH:mm:ss')
             });
 
             await transaction.save();
 
             // Update the related monthly bills
-            for (const month of related_months) {
-                let  feeIndex = house.monthly_fees.findIndex(fee => fee.month === month);
-
-                if (feeIndex !== -1) {
-                    // Update existing monthly fee
-                    house.monthly_fees[feeIndex].status = 'Lunas';
-                    house.monthly_fees[feeIndex].transaction_id = transaction._id;
-                } else {
-                    // Add new monthly fee
-                    house.monthly_fees.push({
-                        month,
-                        fee: house.fee, // Use the fee from the house
-                        status: 'Lunas',
-                        transaction_id: transaction._id
-                    });
+            //console.log(related_months)
+            if(related_months) {
+                for (const month of related_months) {
+                    let  feeIndex = house.monthly_fees.findIndex(fee => fee.month === month);
+    
+                    if (feeIndex !== -1) {
+                        // Update existing monthly fee
+                        house.monthly_fees[feeIndex].status = 'Lunas';
+                        house.monthly_fees[feeIndex].transaction_id = transaction._id;
+                    } else {
+                        // Add new monthly fee
+                        house.monthly_fees.push({
+                            month,
+                            fee: house.fee, // Use the fee from the house
+                            status: 'Lunas',
+                            transaction_id: transaction._id
+                        });
+                    }
                 }
             }
+            
             await house.save();
 
             res.status(201).json(transaction);
@@ -108,7 +115,7 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 
 // Update an existing transaction
 router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']), async (req, res) => {
-    const { houseId, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
+    const { houseId, additional_note_mutasi_bca, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
   
     try {
       let transaction = await Transaction.findById(req.params.id);
@@ -124,19 +131,21 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         transaction.payment_type = payment_type;
         transaction.amount = amount;
         transaction.description = description;
+        transaction.additional_note_mutasi_bca = additional_note_mutasi_bca;
         transaction.proof_of_transfer = proof_of_transfer;
         transaction.related_months = related_months;
         transaction.status = status;
-        transaction.date=paymentDate
+        transaction.date=moment.tz(paymentDate, 'Asia/Jakarta').format('YYYY-MM-DD HH:mm:ss')
       } else {
         transaction.transaction_type = transaction_type;
         transaction.payment_type = payment_type;
         transaction.amount = amount;
         transaction.description = description;
+        transaction.additional_note_mutasi_bca = additional_note_mutasi_bca;
         transaction.proof_of_transfer = proof_of_transfer;
         transaction.related_months = related_months;
         transaction.status = status;
-        transaction.date=paymentDate
+        transaction.date=moment.tz(paymentDate, 'Asia/Jakarta').format('YYYY-MM-DD HH:mm:ss')
       }
   
       

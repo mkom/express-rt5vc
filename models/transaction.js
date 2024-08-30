@@ -24,6 +24,9 @@ const transactionSchema = new Schema({
         type: String,
         required: true
     },
+    additional_note_mutasi_bca: {
+        type: String,
+    },
     date: {
         type: Date,
         default: Date.now

@@ -28,6 +28,10 @@ const HouseSchema = new Schema({
         type: Boolean,
         default: true,
     },
+    group: {
+        type: String,
+        default: null,
+    },
     fee: {
         type: Number,
         default: 70000, 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { google } = require('googleapis');
-
+const stream = require('stream');
 // Setup Google Drive API
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -15,6 +15,8 @@ const oauth2Client = new google.auth.OAuth2(
   CLIENT_SECRET,
   REDIRECT_URI
 );
+
+//console.log('toekn'+ REFRESH_TOKEN)
 
 oauth2Client.setCredentials({ refresh_token: REFRESH_TOKEN });
 
@@ -37,9 +39,13 @@ router.post('/', upload.single('file'), async (req, res) => {
       name: req.file.originalname,
       parents: [FOLDER_ID],
     };
+
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+
     const media = {
       mimeType: req.file.mimetype,
-      body: req.file.buffer,
+      body: bufferStream,
     };
 
     const response = await drive.files.create({

@@ -17,7 +17,7 @@ router.use(cors(corsOptions));
 
 // Create a new house
 router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
-    const { house_id, resident_name,  auto_bill_date, fee, occupancy_status } = req.body;
+    const { house_id, resident_name,  auto_bill_date, fee, occupancy_status, mandatory_fee,group} = req.body;
 
     try {
         let house = new House({
@@ -25,7 +25,9 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
             resident_name,
             auto_bill_date,
             fee,
-            occupancy_status
+            occupancy_status,
+            mandatory_fee,
+            group
         });
 
         await house.save();
@@ -118,7 +120,7 @@ router.get('/fee', async (req, res) => {
         }, 0);
 
         const totalHousesPaid = houses.filter(house => {
-            const paidFees = house.monthly_fees.filter(fee => fee.status === 'Lunas');
+            const paidFees = house.monthly_fees.filter(fee => fee.status !== 'Belum Bayar');
             return paidFees.length > 0;
         }).length;
 
@@ -173,6 +175,7 @@ router.get('/outstanding', async (req, res) => {
           $group: {
             _id: { house_id: '$house_id', month: '$monthly_fees.month' },
             total_fee: { $sum: '$monthly_fees.fee' },
+            occupancy_status: { $first: '$occupancy_status' },
           },
         },
         {
@@ -181,6 +184,7 @@ router.get('/outstanding', async (req, res) => {
             'house': '$_id.house_id',
             periods: '$_id.month',
             'total_fee': '$total_fee',
+            'occupancy_status': '$occupancy_status', 
           },
         },
         {
@@ -191,6 +195,7 @@ router.get('/outstanding', async (req, res) => {
                 _id: '$house',
                 periods: { $push: '$periods' },
                 total_fee: { $sum: '$total_fee' },
+                occupancy_status: { $first: '$occupancy_status' }, 
             },
         },
         {
@@ -199,6 +204,7 @@ router.get('/outstanding', async (req, res) => {
               house: '$_id',
               periods: '$periods',
               total_fee: '$total_fee',
+              occupancy_status: '$occupancy_status', 
             },
         },
         { $sort: { house: 1 } },
@@ -314,7 +320,7 @@ router.get('/:id', protect, checkRole(['admin', 'editor']), async (req, res) => 
 
 // Update a house
 router.put('/update/:id', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
-    const { house_id, user_ids, mandatory_fee, whatsapp_number, auto_bill_date, monthly_fees, resident_name, fee, occupancy_status  } = req.body;
+    const { house_id, user_ids, mandatory_fee, whatsapp_number, auto_bill_date, monthly_fees, resident_name, fee, occupancy_status,group  } = req.body;
 
     try {
         let house = await House.findById(req.params.id);
@@ -331,7 +337,7 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor','superadmin']), 
         house.occupancy_status = occupancy_status || house.occupancy_status;
         house.whatsapp_number = whatsapp_number || house.whatsapp_number;
         house.mandatory_fee = mandatory_fee || house.mandatory_fee;
-
+        house.group = group || house.group;
 
         await house.save();
         res.status(200).json(house);

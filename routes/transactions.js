@@ -92,7 +92,7 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
                         // Add new monthly fee
                         house.monthly_fees.push({
                             month,
-                            fee: house.fee, // Use the fee from the house
+                            //fee: house.fee, // Use the fee from the house
                             status: 'Lunas',
                             transaction_id: transaction._id
                         });
@@ -208,104 +208,35 @@ router.delete('/delete/:id', protect, checkRole(['admin', 'editor', 'superadmin'
 
 // Route to get all transactions
 router.get('/all', async (req, res) => {
-    const { period } = req.query;
+    try {
+        const transactions = await Transaction.find({
+            description: { $not: /#IPLPaguyuban/i }
+        })
+        .populate('created_at')
+        .sort({ created_at: -1 })
+        .select({ description: 1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1 });
+        
+        // const formattedTransactions = transactions.map(transaction => ({
+        //     ...transaction._doc,
+        //     date: format(new Date(transaction.date), 'dd MMM yyyy'),
+        //     created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
+        // }));
 
-    if(!period) {
-        try {
-            const transactions = await Transaction.find()
-            .populate('created_by')
-            .sort({ created_at: -1 });
-            
-            const formattedTransactions = transactions.map(transaction => ({
-                ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
-                created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
-            }));
-
-            const iplTransactions = await Transaction.aggregate([
-                { $match: { transaction_type: 'ipl' }},
-                { $group: { _id: null, totalIpl: { $sum: "$amount" } } }
-            ]);
-
-            const incomeTransactions = await Transaction.aggregate([
-                { $match: { transaction_type: 'income' }},
-                { $group: { _id: null, totalIncome: { $sum: "$amount" } } }
-            ]);
-    
-
-            const expenseTransactions = await Transaction.aggregate([
-                { $match: { transaction_type: 'expense' } },
-                { $group: { _id: null, totalExpense: { $sum: "$amount" } } }
-            ]);
-    
-            if (transactions.length > 0 && transactions[0].created_at) {
-                res.status(200).json({ 
-                    data: formattedTransactions, 
-                    lastUpdate: format(transactions[0].created_at, 'dd MMM yyyy HH:mm'),
-                    totalExpense: expenseTransactions[0]?.totalExpense || 0,
-                    totalIncome: incomeTransactions[0]?.totalIncome || 0,
-                    totalIpl: iplTransactions[0]?.totalIpl || 0,
-                });
-            } else {
-                res.status(200).json({ 
-                    data: formattedTransactions,
-                    totalExpense: expenseTransactions[0]?.totalExpense || 0,
-                    totalIncome: incomeTransactions[0]?.totalIncome || 0,
-                    totalIpl: iplTransactions[0]?.totalIpl || 0,
-                });
+        return res.status(200).json({
+            status: 200,
+            message: 'Suscess',
+            lastUpdate: format(transactions[0].created_at, 'dd MMM yyyy HH:mm'),
+            data: {
+                transactions: transactions,
             }
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send('Server error');
-        }
-    } else {
-        const [year, month] = period.split('-'); // Split the period into year and month
-        const startDate = new Date(`${year}-${month}-01T00:00:00Z`);
-        const endDate = new Date(startDate);
-        endDate.setMonth(startDate.getMonth() + 1);
-
-        try {
-            const transactions = await Transaction.find({
-                date: {
-                    $gte: startDate,
-                    $lt: endDate
-                }
-            })
-            .populate('created_by')
-            .sort({ date: 1 });
-            
-            const formattedTransactions = transactions.map(transaction => ({
-                ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
-                created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss'),
-            }));
-
-            // const iplTransactions = await Transaction.aggregate([
-            //     { $match: { transaction_type: 'ipl' }},
-            //     { $group: { _id: null, totalIpl: { $sum: "$amount" } } }
-            // ]);
-
-            // const incomeTransactions = await Transaction.aggregate([
-            //     { $match: { transaction_type: 'income' }},
-            //     { $group: { _id: null, totalIncome: { $sum: "$amount" } } }
-            // ]);
-    
-
-            // const expenseTransactions = await Transaction.aggregate([
-            //     { $match: { transaction_type: 'expense' } },
-            //     { $group: { _id: null, totalExpense: { $sum: "$amount" } } }
-            // ]);
-    
-            res.status(200).json({ 
-                data: formattedTransactions,
-                // totalExpense: expenseTransactions[0]?.totalExpense || 0,
-                // totalIncome: incomeTransactions[0]?.totalIncome || 0,
-                // totalIpl: iplTransactions[0]?.totalIpl || 0,
-             });
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send('Server error');
-        }
+        });
+        
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 });
 
@@ -324,18 +255,31 @@ router.get('/filter', async (req, res) => {
                 $gte: new Date(startDate),
                 $lte: new Date(endDate),
             },
-        }).populate('house_id').populate('created_by');
+            description: { $not: /#IPLPaguyuban/i },
+        })
+        .populate('created_at')
+        .sort({ created_at: -1 })
+        .select({ description: 1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1 });
 
-        const formattedTransactions = transactions.map(transaction => ({
-            ...transaction._doc,
-            date: format(new Date(transaction.date), 'dd MMM yyyy'),
-            created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
-          }));
+        // const formattedTransactions = transactions.map(transaction => ({
+        //     ...transaction._doc,
+        //     date: format(new Date(transaction.date), 'dd MMM yyyy'),
+        //     created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
+        //   }));
 
-        res.status(200).json(formattedTransactions);
+        return res.status(200).json({
+            status: 200,
+            message: 'Suscess',
+            data: {
+                transactions: transactions,
+            }
+        });
     } catch (error) {
         console.error('Error fetching transactions:', error);
-        res.status(500).json({ message: 'Failed to fetch transactions' });
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 });
 
@@ -362,10 +306,25 @@ router.get('/balance', async (req, res) => {
         const totalIPlPaguyuban = iplPaguyabanTransactions[0]?.totalIPlPaguyuban || 0;
         const totalBalance = totalIncome - totalExpense;
 
-        res.json({ totalIncome, totalExpense, totalBalance, totalIPlPaguyuban });
+        //res.json({ totalIncome, totalExpense, totalBalance, totalIPlPaguyuban });
+
+        return res.json({
+            status: 200,
+            message: 'suscess',
+            data: {
+                totalIncome,
+                totalExpense,
+                totalBalance,
+                totalIPlPaguyuban,
+            }
+        });
+
     } catch (error) {
         console.error('Error calculating total balance:', error);
-        res.status(500).json({ error: 'Error calculating total balance' });
+        res.status(500).json({
+            status: 500,
+            message: 'Error calculating total balance' 
+        });
     }
 });
 
@@ -422,11 +381,21 @@ router.get('/balance-monthly', async (req, res) => {
             }
         ]);
 
-        // Mengirimkan hasil agregasi
-        res.json(monthlyBalances.length > 0 ? monthlyBalances : [{ totalIncome: 0, totalExpense: 0, totalBalance: 0 }]);
+       // res.json(monthlyBalances.length > 0 ? monthlyBalances : [{ totalIncome: 0, totalExpense: 0, totalBalance: 0 }]);
+
+        return res.json({
+            status: 200,
+            message: 'suscess',
+            monthlyBalances,
+        });
+
+
     } catch (error) {
         console.error('Error calculating monthly total balance:', error);
-        res.status(500).json({ error: 'Error calculating monthly total balance' });
+        res.status(500).json({
+            status: 500,
+            message: 'Error calculating monthly total balance' 
+        });
     }
 });
 

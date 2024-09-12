@@ -33,6 +33,8 @@ const housesRouter = require('./routes/houses');
 const transactionsRouter = require('./routes/transactions');
 const uploadRouter = require('./routes/upload');
 const iplRouter = require('./routes/ipl');
+const ipl2Router = require('./routes/ipl2');
+const reportRouter = require('./routes/report');
 
 // Middleware
 const protect = require('./routes/protect');
@@ -71,6 +73,8 @@ app.use('/api/v1/transactions', transactionsRouter);
 
 app.use('/api/v1/upload', uploadRouter);
 app.use('/api/v1/ipl', iplRouter);
+app.use('/api/v1/ipl2', ipl2Router);
+app.use('/api/v1/report', reportRouter);
 
 
 //upload

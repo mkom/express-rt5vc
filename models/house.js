@@ -32,9 +32,14 @@ const HouseSchema = new Schema({
         type: String,
         default: null,
     },
-    fee: {
+    Ipl_fee: {
         type: Number,
-        default: 70000, 
+        default: 50000, 
+        required: true
+    },
+    Rt_fee: {
+        type: Number,
+        default: 20000, 
         required: true
     },
     occupancy_status: {
@@ -42,13 +47,28 @@ const HouseSchema = new Schema({
         enum: ['Kosong', 'Isi', 'Weekend', 'Tidak ada kontak'],
         required: true
     },
-    monthly_fees: [{
+    monthly_status: [{
         month: {
             type: String,
             required: true,
         },
-        fee: {
-            type: Number,
+        status: {
+            type: String,
+            enum: ['Kosong', 'Isi', 'Weekend', 'Tidak ada kontak','Monthly'],
+            default: 'Isi'
+        },
+        mandatory_ipl: {
+            type: Boolean,
+            default: true,
+        },
+        mandatory_rt: {
+            type: Boolean,
+            default: true,
+        },
+    }],
+    monthly_fees: [{
+        month: {
+            type: String,
             required: true,
         },
         status: {

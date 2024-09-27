@@ -72,7 +72,12 @@ router.post('/register', async (req, res) => {
         // Check if the user already exists
         let user = await User.findOne({ email });
         if (user) {
-            return res.status(400).json({ msg: 'User already exists' });
+            return res.status(400).json(
+                { 
+                   status: 400,
+                   message: 'User already exists'
+                 }
+            );
         }
 
         // Handle house_id
@@ -83,13 +88,23 @@ router.post('/register', async (req, res) => {
 
         // Save the user to the database
         await user.save();
-
-        res.status(201).json({ msg: 'User registered successfully' });
+        return res.status(201).json(
+            { 
+               status: 400,
+               message: 'User registered successfully'
+             }
+        );
     } catch (err) {
          // Handle specific errors
         if (err.code === 11000 && err.keyPattern && err.keyPattern.username) {
         // Duplicate key error for username
-        res.status(400).json({ message: 'Username already in use' });
+        
+        res.status(400).json(
+            { 
+               status: 400,
+               message: 'Username already in use'
+             }
+        );
         } else {
         // General error handling
         res.status(500).json({ message: err.message });
@@ -102,27 +117,53 @@ router.post('/register', async (req, res) => {
 // Login a user
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
-
+    console.log(req.body);
     try {
         // Check if the user exists
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({ msg: 'Invalid credentials' });
+            return res.status(400).json(
+                {
+                    status: 400,
+                    message: 'Invalid credentials'
+                 }
+            );
         }
 
         // Check if password matches
         const isMatch = await user.matchPassword(password);
         if (!isMatch) {
-            return res.status(400).json({ msg: 'Invalid credentials' });
+            return res.status(400).json(
+                { 
+                   status: 400,
+                   message: 'Invalid credentials'
+                 }
+            );
         }
 
         // Generate a token
         const token = generateToken(user);
 
-        res.status(200).json({ token, user: { id: user._id, email: user.email, role: user.role } });
+        res.status(200).json(
+            {
+                status: 200,
+                message: 'Login successfully',
+                token, 
+                data: { 
+                    id: user._id, 
+                    email: user.email, 
+                    role: user.role 
+                } 
+            }
+        );
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        return res.status(500).json(
+            { 
+               status: 500,
+               message: err.message
+             }
+        );
     }
 });
 
@@ -134,7 +175,10 @@ const protect = (req, res, next) => {
     }
 
     if (!token) {
-        return res.status(401).json({ msg: 'Not authorized, token missing' });
+        return res.status(401).json({
+             status: 401,
+             message: 'Not authorized, token missing'
+             });
     }
 
     try {
@@ -143,7 +187,10 @@ const protect = (req, res, next) => {
         next();
     } catch (err) {
         console.error(err.message);
-        res.status(401).json({ msg: 'Not authorized, token failed' });
+        res.status(401).json({
+             status: 401,
+             message: 'Not authorized, token failed'
+             });
     }
 };
 

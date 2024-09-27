@@ -42,10 +42,34 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 router.get('/all', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
     try {
         const houses = await House.find().populate('user_ids').populate('monthly_fees.transaction_id');
-        res.status(200).json(houses);
+        return res.status(200).json({
+            status: 200,
+            message: 'suscess',
+            data: houses
+        });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
+    }
+});
+
+router.get('/ipl', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
+    try {
+        const houses = await House.find().populate('user_ids').populate('monthly_fees.transaction_id');
+        return res.status(200).json({
+            status: 200,
+            message: 'suscess',
+            data: houses
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 });
 
@@ -131,7 +155,7 @@ router.get('/fee', async (req, res) => {
         const roundedPercentage = percentage.toFixed(2); // membulatkan menjadi 2 desimal
 
         const result = {
-            data: houses,
+            //data: houses,
             total: allHouses.length,
             total_paid: totalPaid,
             total_unpaid: totalUnpaid,
@@ -141,93 +165,113 @@ router.get('/fee', async (req, res) => {
             total_tbd: totalTbd
         };
 
-        return res.json(result);
+        return res.json({
+            status: 200,
+            message: 'suscess',
+            data: result
+        });
 
     } catch(err){
         console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 
 });
 
 router.get('/outstanding', async (req, res) => {
     try {
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const currentMonth = currentDate.getMonth() + 1; // bulan sekarang  
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1; // current month (1-based index)
 
-      const startYear = 2024;
-      const startMonth = 7;
+        const startYear = 2024;
+        const startMonth = 7;  // starting from July 2024
 
-      const aggregationPipeline = [
-        { $unwind: '$monthly_fees' },
-        {
-            $match: {
-                'monthly_fees.month': {
-                $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,
-                $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`,
+        const aggregationPipeline = [
+            { $unwind: '$monthly_fees' },
+            { $unwind: '$monthly_status' },
+            {
+                $match: {
+                    $and: [
+                        {
+                            'monthly_fees.month': {
+                                $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,  // July 2024
+                                $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`, // Current month
+                            },
+                            'monthly_fees.status': 'Belum Bayar',
+                        },
+                        {
+                            'monthly_status.month': {
+                                $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,
+                                $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`,
+                            },
+                            'monthly_status.status': 'Isi',
+                        },
+                    ],
                 },
-                'monthly_fees.status': 'Belum Bayar',
-                'mandatory_fee': true,
             },
-        },
-        {
-          $group: {
-            _id: { house_id: '$house_id', month: '$monthly_fees.month' },
-            total_fee: { $sum: '$monthly_fees.fee' },
-            occupancy_status: { $first: '$occupancy_status' },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            'house': '$_id.house_id',
-            periods: '$_id.month',
-            'total_fee': '$total_fee',
-            'occupancy_status': '$occupancy_status', 
-          },
-        },
-        {
-            $sort: { periods: 1 }, // mengurutkan periods secara ascending
-        },
-        {
-            $group: {
-                _id: '$house',
-                periods: { $push: '$periods' },
-                total_fee: { $sum: '$total_fee' },
-                occupancy_status: { $first: '$occupancy_status' }, 
+            {
+                $group: {
+                    _id: { house_id: '$house_id', month: '$monthly_fees.month' },
+                    Ipl_fee: { $first: '$Ipl_fee' },  // Use $first to get the fees per month
+                    Rt_fee: { $first: '$Rt_fee' },
+                },
             },
-        },
-        {
-            $project: {
-              _id: 0,
-              house: '$_id',
-              periods: '$periods',
-              total_fee: '$total_fee',
-              occupancy_status: '$occupancy_status', 
+            {
+                $project: {
+                    _id: 0,
+                    house: '$_id.house_id',
+                    periods: '$_id.month',
+                    total_fee: { $add: ['$Ipl_fee', '$Rt_fee'] },  // sum Ipl and Rt fees
+                },
             },
-        },
-        { $sort: { house: 1 } },
-      ];
+            {
+                $sort: { periods: 1 },
+            },
+            {
+                $group: {
+                    _id: '$house',
+                    periods: { $push: '$periods' },  // collect all periods (months)
+                    total_fee: { $sum: '$total_fee' },  // sum up fees for the periods
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    house: '$_id',
+                    periods: '$periods',
+                    total_fee: '$total_fee',
+                },
+            },
+            { $sort: { house: 1 } }
+        ];
 
-      
-  
-       const data = await House.aggregate(aggregationPipeline);
-    //   return res.json(result);
+        const data = await House.aggregate(aggregationPipeline);
 
-      const result = {
-        data: data,
-        total: data.length,
-        total_amount: data.reduce((acc, current) => acc + current.total_fee, 0),
-      };
+        // Calculate the total outstanding amount
+        const totalAmount = data.reduce((acc, current) => acc + current.total_fee, 0);
 
-      return res.json(result);
-      
+        // Respond with data, count, and total amount
+        return res.status(200).json({
+            status: 200,
+            message: 'success',
+            data,
+            total: data.length,
+            total_amount: totalAmount,
+        });
+
     } catch (error) {
-      console.error('Error fetching outstanding data:', error);
-      res.status(500).json({ error: 'Error fetching outstanding data' });
+        console.error('Error fetching outstanding data:', error);
+        return res.status(500).json({
+            status: 500,
+            error: 'Error fetching outstanding data',
+        });
     }
 });
+
 
 router.get('/tbd', async (req, res) => {
     try {
@@ -253,7 +297,7 @@ router.get('/tbd', async (req, res) => {
         {
           $group: {
             _id: { house_id: '$house_id', month: '$monthly_fees.month' },
-            total_fee: { $sum: '$monthly_fees.fee' },
+            total_fee: { $sum: { $add: ['$Ipl_fee', '$Rt_fee'] } },
           },
         },
         {
@@ -288,19 +332,21 @@ router.get('/tbd', async (req, res) => {
       
   
        const data = await House.aggregate(aggregationPipeline);
-    //   return res.json(result);
-
-      const result = {
-        data: data,
+    
+      return res.json({
+        status: 200,
+        message: 'suscess',
+        data,
         total: data.length,
         total_amount: data.reduce((acc, current) => acc + current.total_fee, 0),
-      };
-
-      return res.json(result);
+      });
       
     } catch (error) {
-      console.error('Error fetching outstanding data:', error);
-      res.status(500).json({ error: 'Error fetching outstanding data' });
+      console.error('Error fetching tbd data:', error);
+      res.status(500).json({ 
+        status: 500,
+        error: 'Error fetching tbd data' }
+        );
     }
 });
 
@@ -320,30 +366,68 @@ router.get('/:id', protect, checkRole(['admin', 'editor']), async (req, res) => 
 
 // Update a house
 router.put('/update/:id', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
-    const { house_id, user_ids, mandatory_fee, whatsapp_number, auto_bill_date, monthly_fees, resident_name, fee, occupancy_status,group  } = req.body;
-
+   // const { house_id, user_ids, mandatory_ipl,mandatory_rt, Ipl_fee, Rt_fee, whatsapp_number, auto_bill_date, monthly_status, resident_name, group  } = req.body;
+    const { house_id, user_ids, mandatory_ipl,mandatory_rt, Ipl_fee, Rt_fee, whatsapp_number, auto_bill_date, monthly_status, resident_name, group  } = req.body;
+    const {period} = req.query; 
+     //console.log( period)
+    // console.log(monthly_status);
     try {
-        let house = await House.findById(req.params.id);
+        const house = await House.findById(req.params.id);
         if (!house) {
-            return res.status(404).json({ msg: 'House not found' });
+            return res.status(404).json({ status: 404, message: 'House not found' });
         }
+       
+        house.monthly_status.forEach((status) => {
+            if (status.month === period) {
+              req.body.monthly_status.forEach((newStatus) => {
+                if (newStatus.month === period) {
+                  status.status = newStatus.status || status.status;
+                  status.mandatory_ipl = newStatus.mandatory_ipl || status.mandatory_ipl;
+                  status.mandatory_rt = newStatus.mandatory_rt || status.mandatory_rt;
+                }
+              });
+            }
+          });
+        // house.monthly_status.forEach((status) => {
+        //     if (status.month === period) {
+        //         status.status = monthly_status.status;
+        //         status.mandatory_ipl = monthly_status.mandatory_ipl;
+        //         status.mandatory_rt = monthly_status.mandatory_rt;
+        //     }
+        // });
+
+        // req.body.monthly_status.map((status) => {
+        //     if (status.month === req.params.period) {
+        //       return { ...status, status: req.body.monthly_status.status, mandatory_ipl: req.body.monthly_status.mandatory_ipl, mandatory_rt: req.body.monthly_status.mandatory_rt };
+        //     }
+        //     return status;
+        // });
 
         house.house_id = house_id || house.house_id;
         house.user_ids = user_ids || house.user_ids;
         house.auto_bill_date = auto_bill_date || house.auto_bill_date;
-        house.monthly_fees = monthly_fees || house.monthly_fees;
         house.resident_name = resident_name || house.resident_name;
-        house.fee = fee || house.fee;
-        house.occupancy_status = occupancy_status || house.occupancy_status;
+        house.Ipl_fee = Ipl_fee || house.Ipl_fee;
+        house.Rt_fee = Rt_fee || house.Rt_fee;
         house.whatsapp_number = whatsapp_number || house.whatsapp_number;
-        house.mandatory_fee = mandatory_fee || house.mandatory_fee;
+        //house.monthly_status.mandatory_ipl = mandatory_ipl || house.monthly_status.mandatory_ipl;
+        //house.monthly_status.mandatory_rt = mandatory_rt || house.monthly_status.mandatory_rt;
         house.group = group || house.group;
 
         await house.save();
-        res.status(200).json(house);
+        //res.status(200).json(house);
+        res.status(200).json({
+            status: 200, 
+            message: 'Success', 
+            data: house
+        });
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
+        //res.status(500).send('Server error');
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 });
 

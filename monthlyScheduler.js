@@ -46,6 +46,7 @@ async function createMonthlyFeesForNextYear() {
                   house.monthly_fees.push({
                     month: monthString,
                     status: 'Belum Bayar',
+                    fee: 70000,
                     transaction_id: null
                   });
                 }

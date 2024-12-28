@@ -66,7 +66,7 @@ router.post('/google', async (req, res) => {
 
 // Register a new user
 router.post('/register', async (req, res) => {
-    const { username, email, password, role,house_id } = req.body;
+    const { name, email, password, role,house_id } = req.body;
 
     try {
         // Check if the user already exists
@@ -84,13 +84,13 @@ router.post('/register', async (req, res) => {
         const houseId = house_id ? house_id : null;
 
         // Create a new user
-        user = new User({ username, email, password, role });
+        user = new User({ name, email, password, role });
 
         // Save the user to the database
         await user.save();
         return res.status(201).json(
             { 
-               status: 400,
+               status: 201,
                message: 'User registered successfully'
              }
         );

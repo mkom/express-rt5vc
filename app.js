@@ -32,6 +32,7 @@ const authRoutes  = require('./routes/auth');
 const housesRouter = require('./routes/houses');
 const transactionsRouter = require('./routes/transactions');
 const uploadRouter = require('./routes/upload');
+const uploadAttachment = require('./routes/attachment');
 const iplRouter = require('./routes/ipl');
 const ipl2Router = require('./routes/ipl2');
 const reportRouter = require('./routes/report');
@@ -72,8 +73,9 @@ app.use('/api/v1/houses', housesRouter);
 app.use('/api/v1/transactions', transactionsRouter);
 
 app.use('/api/v1/upload', uploadRouter);
+app.use('/api/v1/attachment', uploadAttachment);
 app.use('/api/v1/ipl', iplRouter);
-app.use('/api/v1/ipl2', ipl2Router);
+app.use('/api/v2/ipl', ipl2Router);
 app.use('/api/v1/report', reportRouter);
 
 

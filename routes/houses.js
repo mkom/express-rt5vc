@@ -39,7 +39,7 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 });
 
 // Get all houses
-router.get('/all', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
+router.get('/all', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
     try {
         const houses = await House.find().populate('user_ids').populate('monthly_fees.transaction_id');
         return res.status(200).json({
@@ -218,6 +218,7 @@ router.get('/outstanding', async (req, res) => {
                     _id: { house_id: '$house_id', month: '$monthly_fees.month' },
                     Ipl_fee: { $first: '$Ipl_fee' },  // Use $first to get the fees per month
                     Rt_fee: { $first: '$Rt_fee' },
+                    fee: { $first: '$monthly_fees.fee'}
                 },
             },
             {
@@ -225,7 +226,7 @@ router.get('/outstanding', async (req, res) => {
                     _id: 0,
                     house: '$_id.house_id',
                     periods: '$_id.month',
-                    total_fee: { $add: ['$Ipl_fee', '$Rt_fee'] },  // sum Ipl and Rt fees
+                    total_fee: '$fee',  // sum Ipl and Rt fees
                 },
             },
             {
@@ -367,7 +368,7 @@ router.get('/:id', protect, checkRole(['admin', 'editor']), async (req, res) => 
 // Update a house
 router.put('/update/:id', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
    // const { house_id, user_ids, mandatory_ipl,mandatory_rt, Ipl_fee, Rt_fee, whatsapp_number, auto_bill_date, monthly_status, resident_name, group  } = req.body;
-    const { house_id, user_ids, mandatory_ipl,mandatory_rt, Ipl_fee, Rt_fee, whatsapp_number, auto_bill_date, monthly_status, resident_name, group  } = req.body;
+    const { house_id, user_ids, fee, whatsapp_number, auto_bill_date, resident_name, group  } = req.body;
     const {period} = req.query; 
      //console.log( period)
     // console.log(monthly_status);
@@ -387,7 +388,19 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor','superadmin']), 
                 }
               });
             }
-          });
+        });
+
+        house.monthly_fees.forEach((item) => {
+            if (item.month === period) {
+              req.body.monthly_fees.forEach((newItem) => {
+                if (newItem.month === period) {
+                  item.fee = newItem.fee || item.fee;
+                }
+              });
+            }
+        });
+
+
         // house.monthly_status.forEach((status) => {
         //     if (status.month === period) {
         //         status.status = monthly_status.status;
@@ -407,8 +420,6 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor','superadmin']), 
         house.user_ids = user_ids || house.user_ids;
         house.auto_bill_date = auto_bill_date || house.auto_bill_date;
         house.resident_name = resident_name || house.resident_name;
-        house.Ipl_fee = Ipl_fee || house.Ipl_fee;
-        house.Rt_fee = Rt_fee || house.Rt_fee;
         house.whatsapp_number = whatsapp_number || house.whatsapp_number;
         //house.monthly_status.mandatory_ipl = mandatory_ipl || house.monthly_status.mandatory_ipl;
         //house.monthly_status.mandatory_rt = mandatory_rt || house.monthly_status.mandatory_rt;

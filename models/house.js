@@ -24,29 +24,62 @@ const HouseSchema = new Schema({
     //     type: Number,
     //     default: 10, // Example default value, you can adjust as needed
     // },
-    fee: {
-        type: Number,
-        default: 70000, 
-        required: true
+    // mandatory_fee: {
+    //     type: Boolean,
+    //     default: true,
+    // },
+    group: {
+        type: String,
+        default: null,
     },
+    // Ipl_fee: {
+    //     type: Number,
+    //     default: 50000, 
+    //     required: true
+    // },
+    // Rt_fee: {
+    //     type: Number,
+    //     default: 20000, 
+    //     required: true
+    // },
     occupancy_status: {
         type: String,
         enum: ['Kosong', 'Isi', 'Weekend', 'Tidak ada kontak'],
         required: true
     },
+    monthly_status: [{
+        month: {
+            type: String,
+            required: true,
+        },
+        status: {
+            type: String,
+            enum: ['Kosong', 'Isi', 'Weekend', 'Tidak ada kontak','Monthly'],
+            default: 'Isi'
+        },
+        mandatory_ipl: {
+            type: Boolean,
+            default: true,
+        },
+        mandatory_rt: {
+            type: Boolean,
+            default: true,
+        },
+    }],
     monthly_fees: [{
         month: {
             type: String,
             required: true,
         },
-        fee: {
-            type: Number,
-            required: true,
-        },
         status: {
             type: String,
-            enum: ['Lunas', 'Belum Bayar', 'Bayar Sebagian', "TBD"],
+            enum: ['Lunas', 'Belum Bayar', 'Bayar Sebagian', "TBD","Check"],
             default: 'Belum Bayar'
+        },
+        fee:{
+            type: Number,
+            default: 70000, 
+            required: true
         },
         transaction_id: {
             type: Schema.Types.ObjectId,

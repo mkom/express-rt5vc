@@ -25,8 +25,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-.env*.local
+.env
+.env.local
 .env.production
 .env.development
 
@@ -39,3 +39,5 @@ next-env.d.ts
 
 .history
 .lh
+.vercel
+.vercelignore

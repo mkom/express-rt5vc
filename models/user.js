@@ -4,8 +4,17 @@ const { Schema } = mongoose;
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
+  name: { type: String, unique: true },
   email: { type: String, required: true, unique: true },
-  googleId:{ type: String, unique: true},
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // tambahkan opsi sparse
+  },
+  whatsapp_number: {
+    type: String,
+    default: null,
+  },
   password: { type: String, required: function() { return !this.googleId; } },
   role: { type: String, required: true, enum: ['user', 'admin','superadmin','editor', 'visitor'], default: 'visitor' },
   house_id: { type: Schema.Types.ObjectId, ref: 'House', default: null },

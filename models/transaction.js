@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const transactionSchema = new Schema({
+    transaction_id: {
+        type: String,
+        unique: true, // memastikan ID unik
+    },
+
     house_id: {
         type: Schema.Types.ObjectId,
         ref: 'House',
@@ -24,6 +29,9 @@ const transactionSchema = new Schema({
         type: String,
         required: true
     },
+    additional_note_mutasi_bca: {
+        type: String,
+    },
     date: {
         type: Date,
         default: Date.now
@@ -32,6 +40,12 @@ const transactionSchema = new Schema({
         type: String,
         default: null
     },
+
+     attachment: {
+        attachment_title: { type: String },
+        attachment_url: { type: String }
+    },
+
     related_months: [{
         type: String
     }],
@@ -51,6 +65,15 @@ const transactionSchema = new Schema({
     }],
 });
 
-const Transaction = mongoose.model('Transaction', transactionSchema);
+// Pre-save hook untuk mengenerate transaction_id dengan tanggal
+transactionSchema.pre('save', async function (next) {
+    if (!this.transaction_id) {
+        const currentDate = new Date();
+        const formattedDate = currentDate.toISOString().slice(0, 10).replace(/-/g, ''); // Format YYYYMMDD
+        const count = await this.constructor.countDocuments(); // Hitung dokumen yang ada
+        this.transaction_id = `TRX${formattedDate}${count + 1}`; // Buat ID unik
+    }
+    next();
+});
 
-module.exports = Transaction;
+module.exports = mongoose.model('Transaction', transactionSchema);

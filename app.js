@@ -7,7 +7,7 @@ function loadEnvVariables() {
   require('dotenv').config();
 
   // Load specific environment file
-  const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+  const envFile = `.env.${process.env.NODE_ENV}`;
   const envFilePath = path.resolve(process.cwd(), envFile);
 
   if (fs.existsSync(envFilePath)) {
@@ -17,15 +17,12 @@ function loadEnvVariables() {
   }
 }
 
-loadEnvVariables();
-
 
 
 const cors = require('cors');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const app = express();
 
 const upload = require('./config/multerConfig');
 
@@ -35,22 +32,41 @@ const authRoutes  = require('./routes/auth');
 const housesRouter = require('./routes/houses');
 const transactionsRouter = require('./routes/transactions');
 const uploadRouter = require('./routes/upload');
+const uploadAttachment = require('./routes/attachment');
+const iplRouter = require('./routes/ipl');
+const ipl2Router = require('./routes/ipl2');
+const reportRouter = require('./routes/report');
+const reportCashflow = require('./routes/cashflow');
 
 // Middleware
 const protect = require('./routes/protect');
 const checkRole = require('./routes/checkRole');
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('Could not connect to MongoDB', err));
+
+loadEnvVariables();
+const app = express();
 
 // Middleware to parse JSON requests
 app.use(express.json());
-
-// Middleware
 app.use(bodyParser.json());
-app.use(cors());
+
+// CORS configuration
+const corsOptions = {
+  origin: ['https://rt5vc.vercel.app', 'http://localhost:3000'], // Replace with your allowed origin
+  methods: 'GET, POST, PUT, DELETE, OPTIONS',
+  allowedHeaders: 'Content-Type, Authorization',
+};
+
+app.use(cors(corsOptions));
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI,{
+  serverSelectionTimeoutMS: 50000 // 50 seconds
+})
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('Could not connect to MongoDB', err));
+
+
 
 app.use('/api/v1/users', userRoutes); 
 app.use('/api/v1/auth', authRoutes);
@@ -58,6 +74,11 @@ app.use('/api/v1/houses', housesRouter);
 app.use('/api/v1/transactions', transactionsRouter);
 
 app.use('/api/v1/upload', uploadRouter);
+app.use('/api/v1/attachment', uploadAttachment);
+app.use('/api/v1/ipl', iplRouter);
+app.use('/api/v2/ipl', ipl2Router);
+app.use('/api/v1/report', reportRouter);
+app.use('/api/v1/cashflow', reportCashflow);
 
 
 //upload
@@ -99,6 +120,9 @@ app.use((err, req, res, next) => {
 // Start the billing scheduler
 
 require('./monthlyScheduler');
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // Start the server
 const port = process.env.PORT || 4000;

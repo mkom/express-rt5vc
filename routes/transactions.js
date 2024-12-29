@@ -6,89 +6,118 @@ const Transaction = require('../models/transaction');
 const protect = require('./protect');
 const checkRole = require('./checkRole');
 const { format } = require('date-fns');
+const moment = require('moment-timezone');
 
+const cors = require('cors');
+const corsOptions = {
+    origin: ['https://rt5vc.vercel.app', 'http://localhost:3000'],
+    methods: 'GET, POST, PUT, DELETE, OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization',
+    credentials: true,
+};
 
+// Apply CORS to all routes in this router
+router.use(cors(corsOptions));
 
 // Create a new transaction
-router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), async (req, res) => {
-    const { houseId, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
-    const created_by = req.user._id;
-    try {
-        // Find the house
+router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
+    const { houseId, additional_note_mutasi_bca, attachments, transaction_type, payment_type, amount, description, proof_of_transfer, attachment, related_months,status,paymentDate  } = req.body;
+    const created_by = req.user ? req.user._id : null;
 
-        //const houseId = req.body.houseId;
-       // console.log('houseId:', houseId);
-        const house = await House.findOne({ house_id: houseId });
-        //console.log(house)
-        if(transaction_type !== 'ipl') {
-            const transaction = new Transaction({
-                transaction_type,
-                payment_type,
-                amount,
-                description,
-                proof_of_transfer,
-                created_by,
-                status,
-                date:paymentDate
-            });
+    if (!created_by) {
+        return res.status(400).json({ error: 'User not authenticated or invalid user ID' });
+    }
     
-            await transaction.save();
-
-            res.status(201).json(transaction);
+    try {
+         // Validate `related_months`
+        if (related_months && !Array.isArray(related_months)) {
+            return res
+            .status(400)
+            .json({ error: 'related_months should be an array' });
         }
 
-        if (transaction_type === 'ipl'){
+        let transaction;
 
-            if (!house) {
-                throw new Error('House not found');
-            }
 
-           // console.log(related_months);
-
-            if (!Array.isArray(related_months)) {
-                throw new Error('elatedMonths should be an array');
-                //return res.status(400).json({ msg: 'relatedMonths should be an array' });
-            }
-
-            // Create a new transaction
-            const transaction = new Transaction({
+        if(houseId) {
+            const house = await House.findOne({ house_id: houseId });
+            // Create transaction with house reference
+            transaction = new Transaction({
                 house_id: house._id,
                 transaction_type,
                 payment_type,
                 amount,
                 description,
+                additional_note_mutasi_bca,
                 proof_of_transfer,
                 related_months,
                 created_by,
-                status,
-                date:paymentDate
+                status: status, // Default status
+                date: moment.tz(paymentDate, 'Asia/Jakarta').toDate(),
+                attachments,
             });
 
             await transaction.save();
 
             // Update the related monthly bills
-            for (const month of related_months) {
-                let  feeIndex = house.monthly_fees.findIndex(fee => fee.month === month);
+            if (related_months && status == 'berhasil') {
+                for (const month of related_months) {
+                    const feeIndex = house.monthly_fees.findIndex(
+                        (fee) => fee.month === month
+                    );
 
-                if (feeIndex !== -1) {
-                    // Update existing monthly fee
-                    house.monthly_fees[feeIndex].status = 'Lunas';
-                    house.monthly_fees[feeIndex].transaction_id = transaction._id;
-                } else {
-                    // Add new monthly fee
-                    house.monthly_fees.push({
+                    if (feeIndex !== -1) {
+                        // Update existing monthly fee
+                        house.monthly_fees[feeIndex].status = 'Lunas';
+                        house.monthly_fees[feeIndex].transaction_id = transaction._id;
+                    } else {
+                        // Add new monthly fee
+                        house.monthly_fees.push({
                         month,
-                        fee: house.fee, // Use the fee from the house
                         status: 'Lunas',
-                        transaction_id: transaction._id
-                    });
+                        transaction_id: transaction._id,
+                        });
+                    }
                 }
             }
+            
+
             await house.save();
 
-            res.status(201).json(transaction);
+          //  res.status(201).json(transaction);
+            
+        } else {
+            transaction = new Transaction({
+                transaction_type,
+                payment_type,
+                amount,
+                description,
+                additional_note_mutasi_bca,
+                proof_of_transfer,
+                attachment,
+                created_by,
+                status: status,
+                date: moment.tz(paymentDate, 'Asia/Jakarta').toDate(),
+                attachments,
+            });
+    
+            await transaction.save();
+            // res.status(201).json(transaction);
         }
-        
+
+        await transaction.populate('created_by', 'email'); 
+        //console.log(transaction);
+        // Respond with transaction data, including user's email
+        res.status(201).json({
+            transaction_id: transaction.transaction_id,
+            created_by: transaction.created_by[0].email,  // Include the user's email
+            created_at: transaction.created_at,
+            amount: transaction.amount,
+            description: transaction.description,
+            date: transaction.date,
+            status: transaction.status,
+        });
+
 
         
     } catch (err) {
@@ -99,25 +128,82 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 
 // Update an existing transaction
 router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']), async (req, res) => {
-    const { house_id, transaction_type, payment_type, amount, description, proof_of_transfer, related_months, status } = req.body;
+    const { houseId, additional_note_mutasi_bca, attachment, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
   
     try {
       let transaction = await Transaction.findById(req.params.id);
       if (!transaction) {
         return res.status(404).json({ message: 'Transaction not found' });
       }
-  
-      transaction.house_id = house_id;
+
+      const house = await House.findOne({ house_id: houseId });
+      // Update transaction fields based on whether house is found
+      transaction.house_id = house ? house._id : transaction.house_id;
       transaction.transaction_type = transaction_type;
       transaction.payment_type = payment_type;
       transaction.amount = amount;
       transaction.description = description;
+      transaction.additional_note_mutasi_bca = additional_note_mutasi_bca;
       transaction.proof_of_transfer = proof_of_transfer;
       transaction.related_months = related_months;
       transaction.status = status;
-  
+
+     
+      
+        // Parse and validate the paymentDate
+        if (paymentDate) {
+            const parsedDate = moment.tz(paymentDate, 'DD MMM YYYY', 'Asia/Jakarta');
+            if (!parsedDate.isValid()) {
+                return res.status(400).json({ message: 'Invalid payment date format' });
+            }
+            transaction.date = parsedDate.toDate();
+        }
+
+        // Update the single attachment if provided
+        if (attachment) {
+            transaction.attachment = {
+                attachment_title: attachment.attachment_title,
+                attachment_url: attachment.attachment_url
+            };
+        }
+
+        // Update `house.monthly_fees` if related_months is provided and status is "berhasil"
+        if (house && related_months && Array.isArray(related_months) && status === 'berhasil') {
+            for (const month of related_months) {
+                const feeIndex = house.monthly_fees.findIndex((fee) => fee.month === month);
+
+                if (feeIndex !== -1) {
+                    // Update existing monthly fee
+                    house.monthly_fees[feeIndex].status = 'Lunas';
+                    house.monthly_fees[feeIndex].transaction_id = transaction._id;
+                } else {
+                    // Add new monthly fee
+                    house.monthly_fees.push({
+                        month,
+                        status: 'Lunas',
+                        transaction_id: transaction._id,
+                    });
+                }
+            }
+
+            await house.save();
+        }
+
       await transaction.save();
-      res.status(200).json(transaction);
+      await transaction.populate('created_by', 'email name whatsapp_number'); 
+      res.status(201).json({
+        transaction_id: transaction.transaction_id,
+        created_by: {
+            email: transaction.created_by[0].email,
+            name: transaction.created_by[0].name,
+            whatsapp_number: transaction.created_by[0].whatsapp_number,
+        },
+        created_at: transaction.created_at,
+        amount: transaction.amount,
+        description: transaction.description,
+        date: transaction.date,
+        status: transaction.status,
+    });
     } catch (err) {
       console.error(err.message);
       res.status(500).send('Server error');
@@ -174,56 +260,36 @@ router.delete('/delete/:id', protect, checkRole(['admin', 'editor', 'superadmin'
 
 // Route to get all transactions
 router.get('/all', async (req, res) => {
-    const { period } = req.query;
+    try {
+        const transactions = await Transaction.find({
+            description: { $not: /#IPLPaguyuban/i }
+        })
+        .populate('created_at')
+        .sort({ created_at: -1 })
+        .select({ description: 1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1,proof_of_transfer:1,attachment:1 });
+        
+        // const formattedTransactions = transactions.map(transaction => ({
+        //     ...transaction._doc,
+        //     date: format(new Date(transaction.date), 'dd MMM yyyy'),
+        //     created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
+        // }));
 
-    if(!period) {
-        try {
-            const transactions = await Transaction.find()
-            .populate('created_by')
-            .sort({ created_at: -1 });
-            
-            const formattedTransactions = transactions.map(transaction => ({
-                ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
-                created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
-            }));
-    
-            if (transactions.length > 0 && transactions[0].created_at) {
-            res.status(200).json({ data: formattedTransactions, lastUpdate: format(transactions[0].created_at, 'dd MMM yyyy HH:mm') });
-            } else {
-            res.status(200).json({ data: formattedTransactions });
+        return res.status(200).json({
+            status: 200,
+            message: 'Suscess',
+            // lastUpdate: format(transactions[0].created_at, 'dd MMM yyyy HH:mm'),
+            lastUpdate: transactions[0].created_at,
+            data: {
+                transactions: transactions,
             }
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send('Server error');
-        }
-    } else {
-        const [year, month] = period.split('-'); // Split the period into year and month
-        const startDate = new Date(`${year}-${month}-01T00:00:00Z`);
-        const endDate = new Date(startDate);
-        endDate.setMonth(startDate.getMonth() + 1);
-
-        try {
-            const transactions = await Transaction.find({
-                date: {
-                    $gte: startDate,
-                    $lt: endDate
-                }
-            })
-            .populate('created_by')
-            .sort({ created_at: -1 });
-            
-            const formattedTransactions = transactions.map(transaction => ({
-                ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
-                created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss'),
-            }));
-    
-            res.status(200).json({ data: formattedTransactions });
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).send('Server error');
-        }
+        });
+        
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 });
 
@@ -242,18 +308,31 @@ router.get('/filter', async (req, res) => {
                 $gte: new Date(startDate),
                 $lte: new Date(endDate),
             },
-        }).populate('house_id').populate('created_by');
+            description: { $not: /#IPLPaguyuban/i },
+        })
+        .populate('created_at')
+        .sort({ created_at: -1 })
+        .select({ description: 1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1 });
 
-        const formattedTransactions = transactions.map(transaction => ({
-            ...transaction._doc,
-            date: format(new Date(transaction.date), 'dd MMM yyyy'),
-            created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
-          }));
+        // const formattedTransactions = transactions.map(transaction => ({
+        //     ...transaction._doc,
+        //     date: format(new Date(transaction.date), 'dd MMM yyyy'),
+        //     created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
+        //   }));
 
-        res.status(200).json(formattedTransactions);
+        return res.status(200).json({
+            status: 200,
+            message: 'Suscess',
+            data: {
+                transactions: transactions,
+            }
+        });
     } catch (error) {
         console.error('Error fetching transactions:', error);
-        res.status(500).json({ message: 'Failed to fetch transactions' });
+        res.status(500).json({
+            status: 500,
+            message: err.message 
+        });
     }
 });
 
@@ -269,14 +348,36 @@ router.get('/balance', async (req, res) => {
             { $group: { _id: null, totalExpense: { $sum: "$amount" } } }
         ]);
 
+        const iplPaguyabanTransactions = await Transaction.aggregate([
+            { $match: { description: /#IPLPaguyuban/i } },
+            { $group: { _id: null, totalIPlPaguyuban: { $sum: "$amount" } } }
+        ]);
+
+
         const totalIncome = incomeTransactions[0]?.totalIncome || 0;
         const totalExpense = expenseTransactions[0]?.totalExpense || 0;
+        const totalIPlPaguyuban = iplPaguyabanTransactions[0]?.totalIPlPaguyuban || 0;
         const totalBalance = totalIncome - totalExpense;
 
-        res.json({ totalIncome, totalExpense, totalBalance });
+        //res.json({ totalIncome, totalExpense, totalBalance, totalIPlPaguyuban });
+
+        return res.json({
+            status: 200,
+            message: 'suscess',
+            data: {
+                totalIncome,
+                totalExpense,
+                totalBalance,
+                totalIPlPaguyuban,
+            }
+        });
+
     } catch (error) {
         console.error('Error calculating total balance:', error);
-        res.status(500).json({ error: 'Error calculating total balance' });
+        res.status(500).json({
+            status: 500,
+            message: 'Error calculating total balance' 
+        });
     }
 });
 
@@ -333,11 +434,21 @@ router.get('/balance-monthly', async (req, res) => {
             }
         ]);
 
-        // Mengirimkan hasil agregasi
-        res.json(monthlyBalances.length > 0 ? monthlyBalances : [{ totalIncome: 0, totalExpense: 0, totalBalance: 0 }]);
+       // res.json(monthlyBalances.length > 0 ? monthlyBalances : [{ totalIncome: 0, totalExpense: 0, totalBalance: 0 }]);
+
+        return res.json({
+            status: 200,
+            message: 'suscess',
+            monthlyBalances,
+        });
+
+
     } catch (error) {
         console.error('Error calculating monthly total balance:', error);
-        res.status(500).json({ error: 'Error calculating monthly total balance' });
+        res.status(500).json({
+            status: 500,
+            message: 'Error calculating monthly total balance' 
+        });
     }
 });
 

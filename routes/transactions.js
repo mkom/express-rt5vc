@@ -21,7 +21,7 @@ router.use(cors(corsOptions));
 
 // Create a new transaction
 router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
-    const { houseId, additional_note_mutasi_bca, attachments, transaction_type, payment_type, amount, description, proof_of_transfer, attachment, related_months,status,paymentDate  } = req.body;
+    const { houseId, whatsapp_notification, additional_note_mutasi_bca, attachments, transaction_type, payment_type, amount, description, proof_of_transfer, attachment, related_months,status,paymentDate  } = req.body;
     const created_by = req.user ? req.user._id : null;
 
     if (!created_by) {
@@ -55,6 +55,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
                 status: status, // Default status
                 date: moment.tz(paymentDate, 'Asia/Jakarta').toDate(),
                 attachments,
+                whatsapp_notification,
             });
 
             await transaction.save();
@@ -128,7 +129,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
 
 // Update an existing transaction
 router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']), async (req, res) => {
-    const { houseId, additional_note_mutasi_bca, attachment, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
+    const { houseId, reason_cancellation, additional_note_mutasi_bca, attachment, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
   
     try {
       let transaction = await Transaction.findById(req.params.id);
@@ -147,7 +148,7 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
       transaction.proof_of_transfer = proof_of_transfer;
       transaction.related_months = related_months;
       transaction.status = status;
-
+      transaction.reason_cancellation = reason_cancellation;
      
       
         // Parse and validate the paymentDate
@@ -203,7 +204,9 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         description: transaction.description,
         date: transaction.date,
         status: transaction.status,
+        additional_note: transaction.reason_cancellation ? transaction.reason_cancellation : null,
     });
+    
     } catch (err) {
       console.error(err.message);
       res.status(500).send('Server error');

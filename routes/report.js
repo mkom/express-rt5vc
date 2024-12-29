@@ -38,12 +38,12 @@ router.get('/', async (req, res) => {
     try {
         // Menghitung total keseluruhan
         const incomeTransactions = await Transaction.aggregate([
-            { $match: { transaction_type: { $in: ['income', 'ipl'] } } },
+            { $match: { transaction_type: { $in: ['income', 'ipl'] },status: 'berhasil' }  },
             { $group: { _id: null, totalIncome: { $sum: "$amount" } } }
         ]);
 
         const expenseTransactions = await Transaction.aggregate([
-            { $match: { transaction_type: 'expense' } },
+            { $match: { transaction_type: 'expense',status: 'berhasil'  } },
             { $group: { _id: null, totalExpense: { $sum: "$amount" } } }
         ]);
 
@@ -65,23 +65,24 @@ router.get('/', async (req, res) => {
                         $gte: startDate,
                         $lt: endDate
                     },
-                    description: { $not: /#IPLPaguyuban/i }
+                    description: { $not: /#IPLPaguyuban/i },
+                    status: 'berhasil' 
                 }
             },
             {
                 $facet: {
                     income: [
-                        { $match: { transaction_type: 'income' } },
+                        { $match: { transaction_type: 'income', status: 'berhasil' } },
                         { $group: { _id: null, totalAmount: { $sum: "$amount" }, transactions: { $push: "$$ROOT" } } },
                         { $sort: { date: -1 } }
                     ],
                     expense: [
-                        { $match: { transaction_type: 'expense' } },
+                        { $match: { transaction_type: 'expense', status: 'berhasil' } },
                         { $group: { _id: null, totalAmount: { $sum: "$amount" }, transactions: { $push: "$$ROOT" } } },
                         { $sort: { date: -1 } }
                     ],
                     ipl: [
-                        { $match: { transaction_type: 'ipl' } },
+                        { $match: { transaction_type: 'ipl', status: 'berhasil' } },
                         { $group: { _id: null, totalAmount: { $sum: "$amount" }, transactions: { $push: "$$ROOT" } } },
                         { $sort: { date: -1 } }
                     ]
@@ -104,6 +105,7 @@ router.get('/', async (req, res) => {
                     $match: {
                         date: { $gte: monthStartDate, $lte: monthEndDate },
                         description: { $not: /#IPLPaguyuban/i },
+                        status: 'berhasil' 
                     }
                 },
                 {

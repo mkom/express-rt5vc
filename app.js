@@ -36,6 +36,7 @@ const uploadAttachment = require('./routes/attachment');
 const iplRouter = require('./routes/ipl');
 const ipl2Router = require('./routes/ipl2');
 const reportRouter = require('./routes/report');
+const reportCashflow = require('./routes/cashflow');
 
 // Middleware
 const protect = require('./routes/protect');
@@ -77,6 +78,7 @@ app.use('/api/v1/attachment', uploadAttachment);
 app.use('/api/v1/ipl', iplRouter);
 app.use('/api/v2/ipl', ipl2Router);
 app.use('/api/v1/report', reportRouter);
+app.use('/api/v1/cashflow', reportCashflow);
 
 
 //upload

@@ -147,6 +147,8 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
       transaction.proof_of_transfer = proof_of_transfer;
       transaction.related_months = related_months;
       transaction.status = status;
+
+     
       
         // Parse and validate the paymentDate
         if (paymentDate) {
@@ -163,6 +165,28 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
                 attachment_title: attachment.attachment_title,
                 attachment_url: attachment.attachment_url
             };
+        }
+
+        // Update `house.monthly_fees` if related_months is provided and status is "berhasil"
+        if (house && related_months && Array.isArray(related_months) && status === 'berhasil') {
+            for (const month of related_months) {
+                const feeIndex = house.monthly_fees.findIndex((fee) => fee.month === month);
+
+                if (feeIndex !== -1) {
+                    // Update existing monthly fee
+                    house.monthly_fees[feeIndex].status = 'Lunas';
+                    house.monthly_fees[feeIndex].transaction_id = transaction._id;
+                } else {
+                    // Add new monthly fee
+                    house.monthly_fees.push({
+                        month,
+                        status: 'Lunas',
+                        transaction_id: transaction._id,
+                    });
+                }
+            }
+
+            await house.save();
         }
 
       await transaction.save();

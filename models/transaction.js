@@ -63,6 +63,16 @@ const transactionSchema = new Schema({
         ref: 'User',
         default: null,
     }],
+
+    
+    reason_cancellation: {
+        type: String,
+    },
+
+    whatsapp_notification: {
+        type: String,
+        default: null,
+      },
 });
 
 // Pre-save hook untuk mengenerate transaction_id dengan tanggal

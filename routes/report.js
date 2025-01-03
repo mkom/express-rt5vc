@@ -177,7 +177,7 @@ router.get('/', async (req, res) => {
             .filter(transaction => transaction != null)
             .map(transaction => ({
                 ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
+                date: transaction.date,
                 created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss'),
                 description: transaction.description,
                 amount: transaction.amount,
@@ -190,7 +190,7 @@ router.get('/', async (req, res) => {
             .filter(transaction => transaction != null)
             .map(transaction => ({
                 ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
+                date: transaction.date,
                 created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss'),
                 description: transaction.description,
                 amount: transaction.amount,
@@ -203,8 +203,8 @@ router.get('/', async (req, res) => {
             .filter(transaction => transaction != null)
             .map(transaction => ({
                 ...transaction._doc,
-                date: format(new Date(transaction.date), 'dd MMM yyyy'),
-                created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss'),
+                date: moment.tz(transaction.date, "UTC").tz("Asia/Jakarta").toDate(),
+                created_at: moment.tz(transaction.date, "UTC").tz("Asia/Jakarta").toDate(),
                 description: transaction.description,
                 amount: transaction.amount,
                 transaction_type: transaction.transaction_type,

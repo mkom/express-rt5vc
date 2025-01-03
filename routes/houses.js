@@ -41,11 +41,45 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 // Get all houses
 router.get('/all', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
     try {
+
+        const groupPriority = [
+            "E1 Ganjil",
+            "E1 Genap - E2 Ganjil",
+            "E2 Genap - E3 Ganjil",
+            "E3 Genap - E5",
+            "E3A Genap - E8"
+        ];
+
+        // Helper function to determine group of a house
+        const determineGroup = (house) => {
+            const match = house.house_id.match(/(E\d+)-(\d+)/);
+            if (!match) return "Unknown";
+            
+            const [_, prefix, number] = match;
+            const isOdd = parseInt(number, 10) % 2 !== 0;
+
+            if (prefix === "E1-" && isOdd) return "E1 Ganjil";
+            if ((prefix === "E1-" && !isOdd) || (prefix === "E2-" && isOdd)) return "E1 Genap - E2 Ganjil";
+            if ((prefix === "E2-" && !isOdd) || (prefix === "E3-" && isOdd)) return "E2 Genap - E3 Ganjil";
+            if ((prefix === "E3-" && !isOdd) || (prefix === "E3A-" && isOdd)) return "E3 Genap - E5";
+            if (prefix === "E3A-" && !isOdd) return "E3A Genap - E8";
+
+            return "Unknown";
+        };
+
+
         const houses = await House.find().populate('user_ids').populate('monthly_fees.transaction_id');
+        
+        const sortedHouses = houses.sort((a, b) => {
+            const groupA = determineGroup(a);
+            const groupB = determineGroup(b);
+            return groupPriority.indexOf(groupA) - groupPriority.indexOf(groupB);
+        });
+        
         return res.status(200).json({
             status: 200,
             message: 'suscess',
-            data: houses
+            data: sortedHouses
         });
     } catch (err) {
         console.error(err.message);

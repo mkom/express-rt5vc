@@ -4,7 +4,8 @@ const protect = require('./protect');
 const checkRole = require('./checkRole');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-
+const mongoose = require('mongoose');
+const Transaction = require('../models/transaction');
 // Route to list users
 router.get('/list', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
     try {
@@ -89,6 +90,65 @@ router.put('/update/:id', protect, checkRole(['user','admin', 'editor','superadm
         res.status(500).json({
             status: 500,
             message: err.message 
+        });
+    }
+});
+
+router.get('/transaction/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+     // Check if userId is a valid 24-character hex string
+     if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ message: 'Invalid userId format' });
+    }
+
+    // Convert userId to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+   
+    try {
+       // console.log(userObjectId);  // Check if it's correctly converted
+
+        const transaction = await Transaction.find({
+            created_by: userObjectId, // Filter by userId in created_by array
+            description: { $not: /#IPLPaguyuban/i }
+        })
+        .populate({
+            path: 'house_id', // Reference to house_id in the Transaction schema
+            select: 'house_id', // Only select house_id field from House collection
+        })
+        .sort({ created_at: -1 })
+        .select({
+            description: 1,
+            created_by: 1,
+            additional_note_mutasi_bca: 1,
+            date: 1,
+            created_at: 1,
+            amount: 1,
+            transaction_type: 1,
+            payment_type: 1,
+            status: 1,
+            proof_of_transfer: 1,
+            attachment: 1,
+            transaction_id:1,
+            house_id:1,
+            related_months:1
+        });
+
+        if (!transaction || transaction.length === 0) {
+            return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+        }
+
+        return res.status(200).json({
+            status: 200,
+            message: 'Success',
+            data: transaction
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({
+            status: 500,
+            message: err.message
         });
     }
 });

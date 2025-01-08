@@ -44,7 +44,7 @@ async function createMonthlyFeesForNextYear() {
               
                 if (existingFeeIndex === -1) {
                   house.monthly_fees.push({
-                    month: monthString,
+                    monyth: monthString,
                     status: 'Belum Bayar',
                     fee: 70000,
                     transaction_id: null

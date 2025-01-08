@@ -7,6 +7,7 @@ const protect = require('./protect');
 const checkRole = require('./checkRole');
 const { format } = require('date-fns');
 const moment = require('moment-timezone');
+const { ObjectId } = mongoose.Types;
 
 const cors = require('cors');
 const corsOptions = {
@@ -37,8 +38,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
         }
 
         let transaction;
-
-
+        
         if(houseId) {
             const house = await House.findOne({ house_id: houseId });
             // Create transaction with house reference
@@ -149,17 +149,7 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
       transaction.related_months = related_months;
       transaction.status = status;
       transaction.reason_cancellation = reason_cancellation;
-     
-      
-        // Parse and validate the paymentDate
-        if (paymentDate) {
-            const parsedDate = moment.tz(paymentDate, 'DD MMM YYYY', 'Asia/Jakarta');
-            if (!parsedDate.isValid()) {
-                return res.status(400).json({ message: 'Invalid payment date format' });
-            }
-            transaction.date = parsedDate.toDate();
-        }
-
+      transaction.date = moment.tz(paymentDate, 'Asia/Jakarta').toDate();
         // Update the single attachment if provided
         if (attachment) {
             transaction.attachment = {
@@ -191,7 +181,11 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         }
 
       await transaction.save();
-      await transaction.populate('created_by', 'email name whatsapp_number'); 
+      await transaction.populate([
+        { path: 'created_by', select: 'email name whatsapp_number' },
+        { path: 'house_id', select: 'house_id' } // Menambahkan populasi untuk 'house_id'
+      ]);
+
       res.status(201).json({
         transaction_id: transaction.transaction_id,
         created_by: {
@@ -205,6 +199,8 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         date: transaction.date,
         status: transaction.status,
         additional_note: transaction.reason_cancellation ? transaction.reason_cancellation : null,
+        whatsapp_notification: transaction.whatsapp_notification,
+        house: transaction.house_id 
     });
     
     } catch (err) {
@@ -269,7 +265,7 @@ router.get('/all', async (req, res) => {
         })
         .populate('created_at')
         .sort({ created_at: -1 })
-        .select({ description: 1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1,proof_of_transfer:1,attachment:1 });
+        .select({ description: 1, created_by:1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1,proof_of_transfer:1,attachment:1 });
         
         // const formattedTransactions = transactions.map(transaction => ({
         //     ...transaction._doc,
@@ -467,8 +463,8 @@ router.get('/:id', async (req, res) => {
   
       const formattedTransaction = {
         ...transaction._doc,
-        date: format(new Date(transaction.date), 'dd MMM yyyy'),
-        created_at: format(new Date(transaction.created_at), 'dd MMM yyyy HH:mm:ss')
+        date: transaction.date,
+        created_at: transaction.created_at
       };
   
       res.status(200).json(formattedTransaction);
@@ -477,6 +473,9 @@ router.get('/:id', async (req, res) => {
       res.status(500).send('Server error');
     }
 });
+
+
+
 
 
 module.exports = router;

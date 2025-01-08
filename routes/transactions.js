@@ -181,7 +181,11 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         }
 
       await transaction.save();
-      await transaction.populate('created_by', 'email name whatsapp_number'); 
+      await transaction.populate([
+        { path: 'created_by', select: 'email name whatsapp_number' },
+        { path: 'house_id', select: 'house_id' } // Menambahkan populasi untuk 'house_id'
+      ]);
+
       res.status(201).json({
         transaction_id: transaction.transaction_id,
         created_by: {
@@ -195,7 +199,8 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         date: transaction.date,
         status: transaction.status,
         additional_note: transaction.reason_cancellation ? transaction.reason_cancellation : null,
-        whatsapp_notification: transaction.whatsapp_notification
+        whatsapp_notification: transaction.whatsapp_notification,
+        house: transaction.house_id 
     });
     
     } catch (err) {

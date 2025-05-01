@@ -20,32 +20,10 @@ const HouseSchema = new Schema({
         type: String,
         default: null,
     },
-    // auto_bill_date: {
-    //     type: Number,
-    //     default: 10, // Example default value, you can adjust as needed
-    // },
-    // mandatory_fee: {
-    //     type: Boolean,
-    //     default: true,
-    // },
+
     group: {
         type: String,
         default: null,
-    },
-    // Ipl_fee: {
-    //     type: Number,
-    //     default: 50000, 
-    //     required: true
-    // },
-    // Rt_fee: {
-    //     type: Number,
-    //     default: 20000, 
-    //     required: true
-    // },
-    occupancy_status: {
-        type: String,
-        enum: ['Kosong', 'Isi', 'Weekend', 'Tidak ada kontak'],
-        required: true
     },
     monthly_status: [{
         month: {
@@ -84,6 +62,24 @@ const HouseSchema = new Schema({
         transaction_id: {
             type: Schema.Types.ObjectId,
             ref: 'Transaction',
+            default: null
+        },
+        status_setor_rw: {
+            type: String,
+            enum: ['done', 'pending', 'not required'],
+            default: 'pending'
+        },
+        fee_setor_rw: {
+            type: Number,
+            default: 0
+        },
+        tanggal_setor_rw: {
+            type: Date,
+            default: null
+        },
+        setor_rw_id:{
+            type: Schema.Types.ObjectId,
+            ref: 'SetorRW',
             default: null
         }
     }]

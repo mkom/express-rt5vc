@@ -20,9 +20,27 @@ router.get('/', async (req, res) => {
             description: { $not: /#IPLPaguyuban/i },
              status: 'berhasil'
         })
-        .populate('created_at')
+        .populate({
+            path: 'house_id', // Reference to house_id in the Transaction schema
+            select: 'house_id', // Only select house_id field from House collection
+        })
         .sort({ created_at: -1 })
-        .select({ description: 1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1,proof_of_transfer:1,attachment:1 });
+        .select({ 
+            description: 1,
+            transaction_id:1, 
+            additional_note_mutasi_bca:1, 
+            date: 1, 
+            created_at: 1,
+            amount: 1,
+            transaction_type:1,
+            payment_type:1,
+            status:1,
+            proof_of_transfer:1,
+            attachment:1,
+            transaction_id:1,
+            house_id:1,
+            related_months:1,
+            transaction_category:1 });
         
         // const formattedTransactions = transactions.map(transaction => ({
         //     ...transaction._doc,

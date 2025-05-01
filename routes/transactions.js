@@ -22,7 +22,7 @@ router.use(cors(corsOptions));
 
 // Create a new transaction
 router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
-    const { houseId, whatsapp_notification, additional_note_mutasi_bca, attachments, transaction_type, payment_type, amount, description, proof_of_transfer, attachment, related_months,status,paymentDate  } = req.body;
+    const { houseId, whatsapp_notification, transaction_category, additional_note_mutasi_bca, attachments, transaction_type, payment_type, amount, description, proof_of_transfer, attachment, related_months,status,paymentDate  } = req.body;
     const created_by = req.user ? req.user._id : null;
 
     if (!created_by) {
@@ -56,6 +56,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
                 date: moment.tz(paymentDate, 'Asia/Jakarta').toDate(),
                 attachments,
                 whatsapp_notification,
+                transaction_category,
             });
 
             await transaction.save();
@@ -100,6 +101,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
                 status: status,
                 date: moment.tz(paymentDate, 'Asia/Jakarta').toDate(),
                 attachments,
+                transaction_category,
             });
     
             await transaction.save();
@@ -117,6 +119,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
             description: transaction.description,
             date: transaction.date,
             status: transaction.status,
+            category: transaction.transaction_category,
         });
 
 
@@ -129,7 +132,7 @@ router.post('/create', protect, checkRole(['user','admin', 'editor','superadmin'
 
 // Update an existing transaction
 router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']), async (req, res) => {
-    const { houseId, reason_cancellation, additional_note_mutasi_bca, attachment, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
+    const { houseId, reason_cancellation,transaction_category, additional_note_mutasi_bca, attachment, transaction_type, payment_type, amount, description, proof_of_transfer, related_months,status,paymentDate  } = req.body;
   
     try {
       let transaction = await Transaction.findById(req.params.id);
@@ -149,6 +152,7 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
       transaction.related_months = related_months;
       transaction.status = status;
       transaction.reason_cancellation = reason_cancellation;
+      transaction.transaction_category = transaction_category;
       transaction.date = moment.tz(paymentDate, 'Asia/Jakarta').toDate();
         // Update the single attachment if provided
         if (attachment) {
@@ -198,6 +202,7 @@ router.put('/update/:id', protect, checkRole(['admin', 'editor', 'superadmin']),
         description: transaction.description,
         date: transaction.date,
         status: transaction.status,
+        category: transaction.transaction_category,
         additional_note: transaction.reason_cancellation ? transaction.reason_cancellation : null,
         whatsapp_notification: transaction.whatsapp_notification,
         house: transaction.house_id 
@@ -263,9 +268,12 @@ router.get('/all', async (req, res) => {
         const transactions = await Transaction.find({
             description: { $not: /#IPLPaguyuban/i }
         })
-        .populate('created_at')
+        .populate([
+            { path: 'created_by', select: 'email name whatsapp_number' },
+            { path: 'house_id', select: 'house_id' }
+          ])
         .sort({ created_at: -1 })
-        .select({ description: 1, created_by:1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1,proof_of_transfer:1,attachment:1 });
+        .select({ description: 1, related_months:1, created_by:1, house_id:1, additional_note_mutasi_bca:1, date: 1, created_at: 1, amount: 1,transaction_type:1,payment_type:1,status:1,proof_of_transfer:1,attachment:1 });
         
         // const formattedTransactions = transactions.map(transaction => ({
         //     ...transaction._doc,

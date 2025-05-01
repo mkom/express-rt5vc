@@ -7,7 +7,7 @@ function loadEnvVariables() {
   require('dotenv').config();
 
   // Load specific environment file
-  const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.local';
+  const envFile = `.env.${process.env.NODE_ENV}`;
   const envFilePath = path.resolve(process.cwd(), envFile);
 
   if (fs.existsSync(envFilePath)) {
@@ -44,7 +44,7 @@ async function createMonthlyFeesForNextYear() {
               
                 if (existingFeeIndex === -1) {
                   house.monthly_fees.push({
-                    monyth: monthString,
+                    month: monthString,
                     status: 'Belum Bayar',
                     fee: 70000,
                     transaction_id: null

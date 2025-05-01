@@ -42,7 +42,17 @@ router.post('/create', protect, checkRole(['admin', 'editor','superadmin']), asy
 router.get('/all', protect, checkRole(['user','admin', 'editor','superadmin']), async (req, res) => {
     try {
 
-        const groupPriority = [
+        // Fetch data with necessary population
+        const houses = await House.find()
+        .populate({
+            path: 'monthly_fees.transaction_id',
+            model: 'Transaction',
+            select: '_id date'
+        })
+        .sort({ house_id: 1 })
+
+         // Predefined group order
+        const groupOrder = [
             "E1 Ganjil",
             "E1 Genap - E2 Ganjil",
             "E2 Genap - E3 Ganjil",
@@ -50,42 +60,25 @@ router.get('/all', protect, checkRole(['user','admin', 'editor','superadmin']), 
             "E3A Genap - E8"
         ];
 
-        // Helper function to determine group of a house
-        const determineGroup = (house) => {
-            const match = house.house_id.match(/(E\d+)-(\d+)/);
-            if (!match) return "Unknown";
-            
-            const [_, prefix, number] = match;
-            const isOdd = parseInt(number, 10) % 2 !== 0;
-
-            if (prefix === "E1-" && isOdd) return "E1 Ganjil";
-            if ((prefix === "E1-" && !isOdd) || (prefix === "E2-" && isOdd)) return "E1 Genap - E2 Ganjil";
-            if ((prefix === "E2-" && !isOdd) || (prefix === "E3-" && isOdd)) return "E2 Genap - E3 Ganjil";
-            if ((prefix === "E3-" && !isOdd) || (prefix === "E3A-" && isOdd)) return "E3 Genap - E5";
-            if (prefix === "E3A-" && !isOdd) return "E3A Genap - E8";
-
-            return "Unknown";
-        };
-
-
-        const houses = await House.find().populate('user_ids').populate('monthly_fees.transaction_id');
-        
-        const sortedHouses = houses.sort((a, b) => {
-            const groupA = determineGroup(a);
-            const groupB = determineGroup(b);
-            return groupPriority.indexOf(groupA) - groupPriority.indexOf(groupB);
+        // Sort houses based on group order
+        houses.sort((a, b) => {
+            const indexA = groupOrder.indexOf(a.group);
+            const indexB = groupOrder.indexOf(b.group);
+            return (indexA === -1 ? Infinity : indexA) - (indexB === -1 ? Infinity : indexB);
         });
         
         return res.status(200).json({
             status: 200,
             message: 'suscess',
-            data: sortedHouses
+            data: houses
         });
     } catch (err) {
         console.error(err.message);
-        res.status(500).json({
+        // Response with error
+        return res.status(500).json({
             status: 500,
-            message: err.message 
+            message: 'Internal Server Error',
+            error: err.message
         });
     }
 });
@@ -215,98 +208,189 @@ router.get('/fee', async (req, res) => {
 
 });
 
+// router.get('/outstanding', async (req, res) => {
+//     try {
+//         const currentDate = new Date();
+//         const currentYear = currentDate.getFullYear();
+//         const currentMonth = currentDate.getMonth() + 1; // current month (1-based index)
+
+//         const startYear = 2024;
+//         const startMonth = 7;  // starting from July 2024
+
+//         const aggregationPipeline = [
+//             { $unwind: '$monthly_fees' },
+//             { $unwind: '$monthly_status' },
+//             {
+//                 $match: {
+//                     $and: [
+//                         {
+//                             'monthly_fees.month': {
+//                                 $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,  // July 2024
+//                                 $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`, // Current month
+//                             },
+//                             'monthly_fees.status': 'Belum Bayar',
+//                         },
+//                         {
+//                             'monthly_status.month': {
+//                                 $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,
+//                                 $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`,
+//                             },
+//                             'monthly_status.status': 'Isi',
+//                         },
+//                     ],
+//                 },
+//             },
+//             {
+//                 $group: {
+//                     _id: { house_id: '$house_id', month: '$monthly_fees.month' },
+//                     Ipl_fee: { $first: '$Ipl_fee' },  // Use $first to get the fees per month
+//                     Rt_fee: { $first: '$Rt_fee' },
+//                     fee: { $first: '$monthly_fees.fee'}
+//                 },
+//             },
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     house: '$_id.house_id',
+//                     periods: '$_id.month',
+//                     total_fee: '$fee',  // sum Ipl and Rt fees
+//                 },
+//             },
+//             {
+//                 $sort: { periods: 1 },
+//             },
+//             {
+//                 $group: {
+//                     _id: '$house',
+//                     periods: { $push: '$periods' },  // collect all periods (months)
+//                     total_fee: { $sum: '$total_fee' },  // sum up fees for the periods
+//                 },
+//             },
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     house: '$_id',
+//                     periods: '$periods',
+//                     total_fee: '$total_fee',
+//                 },
+//             },
+//             { $sort: { house: 1 } }
+//         ];
+
+//         const data = await House.aggregate(aggregationPipeline);
+
+//         // Calculate the total outstanding amount
+//         const totalAmount = data.reduce((acc, current) => acc + current.total_fee, 0);
+
+//         // Respond with data, count, and total amount
+//         return res.status(200).json({
+//             status: 200,
+//             message: 'success',
+//             data,
+//             total: data.length,
+//             total_amount: totalAmount,
+//         });
+
+//     } catch (error) {
+//         console.error('Error fetching outstanding data:', error);
+//         return res.status(500).json({
+//             status: 500,
+//             error: 'Error fetching outstanding data',
+//         });
+//     }
+// });
+
 router.get('/outstanding', async (req, res) => {
     try {
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1; // current month (1-based index)
+        const houses = await House.find()
+            .populate({
+                path: 'monthly_fees.transaction_id',
+                model: 'Transaction',
+                select: '_id date'
+            })
+            .sort({ house_id: 1 })
+            .then(houses => {
+                return houses.map(house => {
+                    const now = new Date();
+                    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-        const startYear = 2024;
-        const startMonth = 7;  // starting from July 2024
+                    // Filter hanya monthly_fees yang statusnya 'Belum Bayar'
+                    const filteredMonthlyFees = house.monthly_fees.filter(mf => {
+                        const mfMonth = mf.month.slice(0, 7); // extract month from monthly_fees month string
+                        const correspondingMonthlyStatus = house.monthly_status.find(ms => ms.month === mf.month);
+                        return mfMonth >= "2024-07" && mfMonth <= currentMonth && mf.status === "Belum Bayar" &&
+                            (correspondingMonthlyStatus && (correspondingMonthlyStatus.status === "Isi" || correspondingMonthlyStatus.status === "Weekend"));
+                            //(correspondingMonthlyStatus && correspondingMonthlyStatus.status === "Isi");
+                    });
 
-        const aggregationPipeline = [
-            { $unwind: '$monthly_fees' },
-            { $unwind: '$monthly_status' },
-            {
-                $match: {
-                    $and: [
-                        {
-                            'monthly_fees.month': {
-                                $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,  // July 2024
-                                $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`, // Current month
-                            },
-                            'monthly_fees.status': 'Belum Bayar',
-                        },
-                        {
-                            'monthly_status.month': {
-                                $gte: `${startYear}-${String(startMonth).padStart(2, '0')}`,
-                                $lte: `${currentYear}-${String(currentMonth).padStart(2, '0')}`,
-                            },
-                            'monthly_status.status': 'Isi',
-                        },
-                    ],
-                },
-            },
-            {
-                $group: {
-                    _id: { house_id: '$house_id', month: '$monthly_fees.month' },
-                    Ipl_fee: { $first: '$Ipl_fee' },  // Use $first to get the fees per month
-                    Rt_fee: { $first: '$Rt_fee' },
-                    fee: { $first: '$monthly_fees.fee'}
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    house: '$_id.house_id',
-                    periods: '$_id.month',
-                    total_fee: '$fee',  // sum Ipl and Rt fees
-                },
-            },
-            {
-                $sort: { periods: 1 },
-            },
-            {
-                $group: {
-                    _id: '$house',
-                    periods: { $push: '$periods' },  // collect all periods (months)
-                    total_fee: { $sum: '$total_fee' },  // sum up fees for the periods
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    house: '$_id',
-                    periods: '$periods',
-                    total_fee: '$total_fee',
-                },
-            },
-            { $sort: { house: 1 } }
+                    const filteredMonthlyStatus = house.monthly_status.filter(ms => {
+                        const msMonth = ms.month.slice(0, 7); // extract month from monthly_status month string
+                        //return msMonth >= "2024-07" && msMonth <= currentMonth && (ms.status === "Isi" || ms.status === "Weekend");
+                        return msMonth >= "2024-07" && msMonth <= currentMonth && (ms.status === "Isi" || ms.status === "Weekend");
+                    });
+
+                    // Filter 'Belum Bayar' dari bulan Juli 2024 sampai bulan sekarang
+                    const outstandingFees = house.monthly_fees.filter(mf => {
+                        const mfMonth = mf.month.slice(0, 7);
+                        const correspondingMonthlyStatus = house.monthly_status.find(ms => ms.month === mf.month);
+                        return mfMonth >= "2024-07" && mfMonth <= currentMonth &&
+                            mf.status === "Belum Bayar" && (correspondingMonthlyStatus && (correspondingMonthlyStatus.status === "Isi" || correspondingMonthlyStatus.status === "Weekend"));
+                    })
+                    .map(ms => ms.month.slice(0, 7));
+    
+                   
+                    // Hanya masukkan house yang memiliki outstandingFees lebih dari 0
+                    if (outstandingFees.length > 0) {
+                        const total_fee = filteredMonthlyFees.reduce((acc, mf) => acc + mf.fee, 0);
+
+                        return {
+                            _id: house._id,
+                            house_id: house.house_id,
+                            resident_name:house.resident_name,
+                            group: house.group,
+                            periods: outstandingFees,
+                            monthly_status: filteredMonthlyStatus,
+                            total_fee: total_fee
+                        };
+                    }
+                }).filter(house => house !== undefined); // Filter out undefined (houses with no outstanding fees)
+            });
+    
+        const total = houses.reduce((acc, house) => acc + house.total_fee, 0);
+
+        const groupOrder = [
+            "E1 Ganjil",
+            "E1 Genap - E2 Ganjil",
+            "E2 Genap - E3 Ganjil",
+            "E3 Genap - E5",
+            "E3A Genap - E8"
         ];
-
-        const data = await House.aggregate(aggregationPipeline);
-
-        // Calculate the total outstanding amount
-        const totalAmount = data.reduce((acc, current) => acc + current.total_fee, 0);
-
-        // Respond with data, count, and total amount
+    
+        houses.sort((a, b) => {
+            const indexA = groupOrder.indexOf(a.group);
+            const indexB = groupOrder.indexOf(b.group);
+            return indexA - indexB;
+        });
+    
         return res.status(200).json({
             status: 200,
             message: 'success',
-            data,
-            total: data.length,
-            total_amount: totalAmount,
+            data: houses,
+            total: houses.length,
+            total_amount: total,
         });
-
-    } catch (error) {
-        console.error('Error fetching outstanding data:', error);
-        return res.status(500).json({
+    
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({
             status: 500,
-            error: 'Error fetching outstanding data',
+            error: 'Error fetching ipl data'
         });
     }
-});
+    
+    
 
+});
 
 router.get('/tbd', async (req, res) => {
     try {

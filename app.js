@@ -1,22 +1,26 @@
 const fs = require('fs');
 const path = require('path');
+const dotenv = require('dotenv');
 
-// Function to load environment variables
-function loadEnvVariables() {
-  // Load general .env file
-  require('dotenv').config();
+// Tentukan file .env berdasarkan NODE_ENV
+const envFile = `.env.${process.env.NODE_ENV || 'local'}`;
+dotenv.config({ path: envFile });
 
-  // Load specific environment file
-  const envFile = `.env.${process.env.NODE_ENV}`;
-  const envFilePath = path.resolve(process.cwd(), envFile);
+// Logging sesuai environment
+const log = (level, message) => {
+  const levels = ['debug', 'info', 'warn', 'error'];
+  const currentLevel = process.env.LOG_LEVEL || 'info';
 
-  if (fs.existsSync(envFilePath)) {
-    require('dotenv').config({ path: envFilePath });
-  } else {
-    console.warn(`Environment file ${envFile} does not exist`);
+  if (levels.indexOf(level) >= levels.indexOf(currentLevel)) {
+    console.log(`[${level.toUpperCase()}] ${message}`);
   }
-}
+};
 
+// Contoh log di berbagai level
+log('debug', 'This is a debug message');
+log('info', 'This is an info message');
+log('warn', 'This is a warning message');
+log('error', 'This is an error message');
 
 
 const cors = require('cors');
@@ -37,13 +41,14 @@ const iplRouter = require('./routes/ipl');
 const ipl2Router = require('./routes/ipl2');
 const reportRouter = require('./routes/report');
 const reportCashflow = require('./routes/cashflow');
+const reportSetorRw = require('./routes/setorrw')
 
 // Middleware
 const protect = require('./routes/protect');
 const checkRole = require('./routes/checkRole');
 
 
-loadEnvVariables();
+//loadEnvVariables();
 const app = express();
 
 // Middleware to parse JSON requests
@@ -79,6 +84,7 @@ app.use('/api/v1/ipl', iplRouter);
 app.use('/api/v2/ipl', ipl2Router);
 app.use('/api/v1/report', reportRouter);
 app.use('/api/v1/cashflow', reportCashflow);
+app.use('/api/v1/setorrw', reportSetorRw);
 
 
 //upload

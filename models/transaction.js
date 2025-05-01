@@ -16,6 +16,21 @@ const transactionSchema = new Schema({
         enum: ['income', 'expense', 'ipl'],
         required: true
     },
+
+    // - Pemasukan Rutin (IPL)
+    // - Pemasukan Lain - Lain
+
+    // - Pengeluaran Rutin (Konsumsi rapat, Token Listrik Fasum, Kerja bakti, Setor RW)
+    // - Pengeluaran Fasilitas Sosial (Biaya Santunan Warga Sakit, Uang Duka)
+    // - Pengeluaran Fasilitas Umum (Perbaikan dan Maintenance PJU, Ongkos Angkut Rangting Dahan)
+    // - Pengeluaran Lain-lain (ATK)
+
+    transaction_category: {
+        type: String,
+        enum: ['Rutin', 'Lain - Lain','Fasilitas Sosial','Fasilitas Umum'],
+        //required: true
+    },
+
     payment_type: {
         type: String,
         enum: ['cash', 'transfer'],
@@ -72,7 +87,18 @@ const transactionSchema = new Schema({
     whatsapp_notification: {
         type: String,
         default: null,
-      },
+    },
+
+    setor_rw: [{
+        month: String,
+        status: { type: String, enum: ['pending', 'done'], default: 'pending' },
+        date: { type: Date },
+        setor_rw_id:{
+            type: Schema.Types.ObjectId,
+            ref: 'SetorRW',
+            default: null
+        }
+    }]
 });
 
 // Pre-save hook untuk mengenerate transaction_id dengan tanggal

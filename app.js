@@ -42,6 +42,7 @@ const ipl2Router = require('./routes/ipl2');
 const reportRouter = require('./routes/report');
 const reportCashflow = require('./routes/cashflow');
 const reportSetorRw = require('./routes/setorrw')
+const letter = require('./routes/letter')
 
 // Middleware
 const protect = require('./routes/protect');
@@ -85,6 +86,8 @@ app.use('/api/v2/ipl', ipl2Router);
 app.use('/api/v1/report', reportRouter);
 app.use('/api/v1/cashflow', reportCashflow);
 app.use('/api/v1/setorrw', reportSetorRw);
+app.use('/api/v1/letter', letter);
+
 
 
 //upload

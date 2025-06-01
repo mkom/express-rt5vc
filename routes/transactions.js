@@ -266,7 +266,7 @@ router.delete('/delete/:id', protect, checkRole(['admin', 'editor', 'superadmin'
 router.get('/all', async (req, res) => {
     try {
         const transactions = await Transaction.find({
-            description: { $not: /#IPLPaguyuban/i }
+           // description: { $not: /#IPLPaguyuban/i }
         })
         .populate([
             { path: 'created_by', select: 'email name whatsapp_number' },

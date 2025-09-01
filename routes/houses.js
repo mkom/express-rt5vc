@@ -358,6 +358,7 @@ router.get('/outstanding', async (req, res) => {
                             _id: house._id,
                             house_id: house.house_id,
                             resident_name: house.resident_name,
+                            whatsapp_number: house.whatsapp_number,
                             group: house.group,
                             periods: outstandingFees,
                             monthly_status: filteredMonthlyStatus,

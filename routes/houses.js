@@ -339,14 +339,20 @@ router.get('/outstanding', async (req, res) => {
                     .map(ms => ms.month.slice(0, 7));
     
                    
-                    // Hanya masukkan house yang memiliki outstandingFees lebih dari 0
-                    if (outstandingFees.length > 0) {
+                    // Ambil tanggal hari ini
+                    const today = new Date();
+                    const currentDay = today.getDate();
+
+                    // Hanya masukkan house yang memiliki outstandingFees sesuai aturan tanggal
+                    // Sebelum tanggal 10: outstandingFees.length > 1
+                    // Setelah/tepat tanggal 10: outstandingFees.length > 0
+                    if ((currentDay < 10 && outstandingFees.length > 1) || (currentDay >= 10 && outstandingFees.length > 0)) {
                         const total_fee = filteredMonthlyFees.reduce((acc, mf) => acc + mf.fee, 0);
 
                         return {
                             _id: house._id,
                             house_id: house.house_id,
-                            resident_name:house.resident_name,
+                            resident_name: house.resident_name,
                             group: house.group,
                             periods: outstandingFees,
                             monthly_status: filteredMonthlyStatus,

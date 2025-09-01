@@ -41,9 +41,19 @@ router.get('/', async (req, res) => {
             });
 
               // Filter 'Belum Bayar' dari bulan Juli 2024 sampai bulan sekarang
+
+            const today = new Date();
+            const currentDay = today.getDate();
+            //const currentMonth = today.toISOString().slice(0, 7); // Format YYYY-MM
+
+            const isCurrentMonth = (monthStr) => monthStr.slice(0, 7) === currentMonth;
             const outstandingFees = house.monthly_fees.filter(mf => {
               const mfMonth = mf.month.slice(0, 7);
               const correspondingMonthlyStatus = house.monthly_status.find(ms => ms.month === mf.month);
+              // Skip current month if today < 10
+              if (currentDay < 10 && isCurrentMonth(mfMonth)) {
+                return false;
+              }
               return mfMonth >= "2024-07" && mfMonth <= currentMonth &&
                   mf.status === "Belum Bayar" && (correspondingMonthlyStatus && (correspondingMonthlyStatus.status === "Isi" || correspondingMonthlyStatus.status === "Weekend"));
             });

@@ -431,7 +431,7 @@ router.get('/', async (req, res) => {
                 };
             })
             .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 5);
+           // .slice(0, 5);
             
         // const formattedInRUtinTransactions = inRutinTrx
         //     .filter(transaction => transaction != null)

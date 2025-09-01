@@ -313,12 +313,24 @@ router.get('/outstanding', async (req, res) => {
                 return houses.map(house => {
                     const now = new Date();
                     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    const currentDay = now.getDate();
+                    
+                    // Tentukan batas bulan untuk outstanding berdasarkan tanggal
+                    let maxMonth;
+                    if (currentDay < 10) {
+                        // Sebelum tanggal 10, bulan sekarang belum dianggap terlambat
+                        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+                        maxMonth = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+                    } else {
+                        // Setelah/tepat tanggal 10, bulan sekarang sudah dianggap terlambat
+                        maxMonth = currentMonth;
+                    }
 
-                    // Filter hanya monthly_fees yang statusnya 'Belum Bayar'
+                    // Filter hanya monthly_fees yang statusnya 'Belum Bayar' sampai maxMonth
                     const filteredMonthlyFees = house.monthly_fees.filter(mf => {
                         const mfMonth = mf.month.slice(0, 7); // extract month from monthly_fees month string
                         const correspondingMonthlyStatus = house.monthly_status.find(ms => ms.month === mf.month);
-                        return mfMonth >= "2024-07" && mfMonth <= currentMonth && mf.status === "Belum Bayar" &&
+                        return mfMonth >= "2024-07" && mfMonth <= maxMonth && mf.status === "Belum Bayar" &&
                             (correspondingMonthlyStatus && (correspondingMonthlyStatus.status === "Isi" || correspondingMonthlyStatus.status === "Weekend"));
                             //(correspondingMonthlyStatus && correspondingMonthlyStatus.status === "Isi");
                     });
@@ -326,27 +338,20 @@ router.get('/outstanding', async (req, res) => {
                     const filteredMonthlyStatus = house.monthly_status.filter(ms => {
                         const msMonth = ms.month.slice(0, 7); // extract month from monthly_status month string
                         //return msMonth >= "2024-07" && msMonth <= currentMonth && (ms.status === "Isi" || ms.status === "Weekend");
-                        return msMonth >= "2024-07" && msMonth <= currentMonth && (ms.status === "Isi" || ms.status === "Weekend");
+                        return msMonth >= "2024-07" && msMonth <= maxMonth && (ms.status === "Isi" || ms.status === "Weekend");
                     });
-
-                    // Filter 'Belum Bayar' dari bulan Juli 2024 sampai bulan sekarang
+                    
+                    // Filter 'Belum Bayar' dari bulan Juli 2024 sampai maxMonth
                     const outstandingFees = house.monthly_fees.filter(mf => {
                         const mfMonth = mf.month.slice(0, 7);
                         const correspondingMonthlyStatus = house.monthly_status.find(ms => ms.month === mf.month);
-                        return mfMonth >= "2024-07" && mfMonth <= currentMonth &&
+                        return mfMonth >= "2024-07" && mfMonth <= maxMonth &&
                             mf.status === "Belum Bayar" && (correspondingMonthlyStatus && (correspondingMonthlyStatus.status === "Isi" || correspondingMonthlyStatus.status === "Weekend"));
                     })
                     .map(ms => ms.month.slice(0, 7));
-    
-                   
-                    // Ambil tanggal hari ini
-                    const today = new Date();
-                    const currentDay = today.getDate();
 
-                    // Hanya masukkan house yang memiliki outstandingFees sesuai aturan tanggal
-                    // Sebelum tanggal 10: outstandingFees.length > 1
-                    // Setelah/tepat tanggal 10: outstandingFees.length > 0
-                    if ((currentDay < 10 && outstandingFees.length > 1) || (currentDay >= 10 && outstandingFees.length > 0)) {
+                    // Hanya masukkan house yang memiliki outstandingFees
+                    if (outstandingFees.length > 0) {
                         const total_fee = filteredMonthlyFees.reduce((acc, mf) => acc + mf.fee, 0);
 
                         return {
